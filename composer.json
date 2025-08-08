@@ -1,0 +1,29 @@
+{
+  "name": "sanf/rubot",
+  "type": "library",
+  "version": "v1.0.0",
+  "description": "Rubika Bot API SDK in PHP",
+  "keywords": [
+    "Rubika",
+    "Bot",
+    "Rubika-Bot"
+  ],
+  "homepage": "https://github.com/sanf-dev/RuBot",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "AmirAli",
+      "email": "sanfai.ir@gmail.com"
+    }
+  ],
+  "autoload": {
+    "psr-4": {
+      "RuBot\\": "Src/"
+    }
+  },
+  "require": {
+    "php": ">=8.1"
+  },
+  "minimum-stability": "stable",
+  "prefer-stable": true
+}
