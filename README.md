@@ -35,7 +35,7 @@ $run = function (Message $update) use ($bot) {
 
 ---
 
-## 🎛 Sending Messages
+## Sending Messages
 
 ```php
 $bot->sendMessage("TEXT", "CHAT_ID", "REPLY_MESSAGE_ID", ["OPTIONS"]);
@@ -92,10 +92,6 @@ $keypad = (new ChatKeypadBuilder)
 $bot->sendMessage("YOUR_TEXT", "CHAT_ID", "REPLY_MESSAGE_ID", $keypad);
 ```
 
-### ارسال پیام
-
----
-
 ## 🔍 Message Filtering
 
 ```php
@@ -113,7 +109,7 @@ if ($update->filter(When::Command("start"))) {
 
 ---
 
-## ⚙ Security Key Setup
+## Security Key Setup
 
 ```php
 $bot->SecretKey = "my_bot_110";
@@ -216,6 +212,6 @@ if ($bot->checkSecretKey()) {
 
 ---
 
-## 📜 License
+## License
 
 MIT © [Sanf-Dev](https://github.com/sanf-dev/)
