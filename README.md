@@ -1,4 +1,3 @@
-````md
 <p align="center"><b>RoBot | Rubika Bot API Library</b></p>
 
 ## Rubika Bot Api
@@ -18,7 +17,6 @@ To obtain a token, use the official Rubika bot:
 ```bash
 composer require sanf/rubot
 ```
-````
 
 ## 🛠 Basic Structure
 
