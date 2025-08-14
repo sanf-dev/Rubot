@@ -15,14 +15,88 @@ class Bot
 
     public string|false $SecretKey = false;
     public int $TimeOut = 10;
-    public bool $setWebhook = false;
+    public bool|string $setWebhookURL = true;
 
     private string $baseUrl = "https://botapi.rubika.ir/v3/";
 
     public function __construct(string $token)
     {
         $this->Token = $token;
+
+        if (file_exists("info.json")) {
+            return;
+        }
+
+        $autoWB = false;
+        $url = null;
+
+
+        if ($this->setWebhookURL === true) {
+            $url = $this->getWebHookAddress();
+            if (!empty($this->SecretKey)) {
+                $url .= "?key=" . $this->SecretKey;
+            }
+            $autoWB = true;
+        } else if (is_string($this->setWebhookURL) && filter_var($this->setWebhookURL, FILTER_VALIDATE_URL)) {
+            $url = $this->setWebhookURL;
+            $autoWB = false;
+        } else {
+            throw new BotException("Error: invalid setWebhookURL value");
+        }
+
+        if (!empty($url) && filter_var($url, FILTER_VALIDATE_URL)) {
+            $responseWB = $this->setWebHook($url);
+        } else {
+            throw new BotException("Error: invalid WebHook URL");
+        }
+
+        $bot_info = $this->getMe()["bot"] ?? "error token";
+        $data = [
+            "rubika bot api - dev:sanfapi | V1.0.1",
+            "config" => [
+                "autoWB" => $autoWB,
+                "secretKey" => "UNK"
+            ],
+            "webhook" => [
+                "url" => $this->removeKeyParam($url),
+                "response" => $responseWB
+            ],
+            "bot" => $bot_info,
+        ];
+        file_put_contents("info.json", json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
     }
+
+    private function removeKeyParam(string $url): string
+    {
+        $parts = parse_url($url);
+        $query = [];
+
+        if (empty($parts) || !isset($parts['query'], $parts['scheme'], $parts['host']))
+            return $url;
+
+        if (!empty($parts['query'])) {
+            parse_str($parts['query'], $query);
+            unset($query['key']);
+        }
+        $newUrl = $parts['scheme'] . '://' . $parts['host']
+            . (isset($parts['path']) ? $parts['path'] : '')
+            . (!empty($query) ? '?' . http_build_query($query) : '');
+
+        return $newUrl;
+    }
+
+    private function getWebHookAddress(): string
+    {
+        $docRoot = realpath($_SERVER['DOCUMENT_ROOT']);
+        $filePath = realpath($_SERVER['SCRIPT_FILENAME']); // <<< اینجا تغییر دادیم
+        if (strpos($filePath, $docRoot) !== 0) {
+            throw new BotException("File is outside of web root.");
+        }
+        $relativePath = str_replace('\\', '/', substr($filePath, strlen($docRoot)));
+        $host = $_SERVER['HTTP_HOST'] ?? "error";
+        return 'https://' . $host . '/' . ltrim($relativePath, '/');
+    }
+
 
     /**
      * setSecretKey
@@ -188,7 +262,11 @@ class Bot
                 $json["chat_keypad_type"] = $options["chat_keypad_type"];
             }
         }
-        return $this->_request("sendFile", $json);
+        $response = $this->_request("sendFile", $json);
+        if (is_array($response)) {
+            $response["file_id"] = $file_id;
+        }
+        return $response;
     }
 
     private static function getFileName(string $path): string
