@@ -194,6 +194,11 @@ class Message
         return $this->bot->sendMessage($text, $this->chat_id(), $this->message_id(), $options);
     }
 
+    public function replyFile(string $text, string $path, array $options = [])
+    {
+        return $this->bot->sendFile($text, $this->chat_id(), $path, $this->message_id(), $options);
+    }
+
     public function sendPoll(string $question, array $options)
     {
         return $this->bot->sendPoll($this->chat_id(), $question, $options, $this->message_id());
