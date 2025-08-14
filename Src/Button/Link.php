@@ -12,16 +12,6 @@ class Link
     public function type(LinkType $type = LinkType::url): self
     {
         $this->rows["type"] = $type->value;
-        if ($type === LinkType::url)
-            trigger_error(
-                "use Link(url)",
-                E_USER_NOTICE
-            );
-        else
-            trigger_error(
-                "use joinChannel(username,ask_join:true)",
-                E_USER_NOTICE
-            );
         return $this;
     }
 
