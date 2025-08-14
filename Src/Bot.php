@@ -94,7 +94,7 @@ class Bot
      */
     public function getMe()
     {
-        return $this->init("getMe", [
+        return $this->_request("getMe", [
             "getMe" => true
         ]);
     }
@@ -138,24 +138,41 @@ class Bot
                 $json["chat_keypad_type"] = $options["chat_keypad_type"];
             }
         }
-        return $this->init("sendMessage", $json);
+        return $this->_request("sendMessage", $json);
     }
 
     public function sendFile(
         string $text,
         string $chat_id,
-        string $fiile_id,
+        string $path,
         string $reply = "",
         array $options = []
     ) {
+        if (isset($options["file_id"])) {
+            $file_id = $options["file_id"];
+        } else {
+            $fileType = $this->detectFileType($path);
+            $fileName = self::getFileName($path);
+            try {
+                $uploadURL = $this->getUploadUrl($fileType[0]);
+            } catch (BotException $e) {
+                return "Error : " . $e->getMessage();
+            }
+            try {
+                $file_id = $this->uploadMediaFile($uploadURL, $fileName, $path);
+            } catch (BotException $e) {
+                return "Error : " . $e->getMessage();
+            }
+        }
         $json = [
             "chat_id" => $chat_id,
             "text" => $text,
-            "file_id" =>  $fiile_id,
+            "file_id" => $file_id,
         ];
         if (!empty($reply)) {
             $json["reply_to_message_id"] = $reply;
         }
+
         if (!empty($options)) {
             if (isset($options["disable_notification"])) {
                 $json["disable_notification"] = $options["disable_notification"];
@@ -171,12 +188,48 @@ class Bot
                 $json["chat_keypad_type"] = $options["chat_keypad_type"];
             }
         }
-        return $this->init("sendFile", $json);
+        return $this->_request("sendFile", $json);
+    }
+
+    private static function getFileName(string $path): string
+    {
+        $type = self::detectFileType($path)[1];
+        $cleanPath = parse_url($path, PHP_URL_PATH);
+        return basename($cleanPath) ?? "sanfBotUpload.$type";
+    }
+
+    private static function detectFileType(string $path): array
+    {
+        $type = strtolower(
+            pathinfo(
+                parse_url(
+                    $path,
+                    PHP_URL_PATH
+                ),
+                PATHINFO_EXTENSION
+            )
+        );
+        $map = [
+            "jpg" => "Image",
+            "jpeg" => "Image",
+            "png" => "Image",
+            "webp" => "Image",
+            "mp3" => "Music",
+            "wav" => "Music",
+            "flac" => "Music",
+            "aac" => "Music",
+            "ogg" => "Voice",
+            "opus" => "Voice",
+            "amr" => "Voice",
+            "gif" => "Gif"
+        ];
+        $getType = $map[$type] ?? "File";
+        return [$getType, $type ?? "unk"];
     }
 
     public function getFile(string $file_id)
     {
-        return $this->init("getFile", ["file_id" => $file_id]);
+        return $this->_request("getFile", ["file_id" => $file_id]);
     }
 
     public function getUploadUrl(string $media_type)
@@ -186,7 +239,7 @@ class Bot
         if (!in_array($media_type, $allowed))
             throw new BotException("Invalid media type. Must be one of: " . implode(", ", $allowed));
 
-        $response = $this->init("requestSendFile", [
+        $response = $this->_request("requestSendFile", [
             "type" => $media_type
         ]);
         if (!isset($response["upload_url"]))
@@ -195,45 +248,75 @@ class Bot
         return $response["upload_url"];
     }
 
-
     public function uploadMediaFile(string $upload_url, string $name, string $path)
     {
         $isTempFile = false;
+        $maxSize = 49 * 1024 * 1024; // 49MB
+        $tempPath = null;
+
         if (filter_var($path, FILTER_VALIDATE_URL)) {
             $content = @file_get_contents($path);
-            if ($content === false)
+            if ($content === false) {
                 throw new BotException("Failed to download file from URL.");
+            }
+            if (strlen($content) > $maxSize) {
+                throw new BotException("File size exceeds the 49MB limit.");
+            }
 
             $tempPath = tempnam(sys_get_temp_dir(), "UPLOADS");
             file_put_contents($tempPath, $content);
             $path = $tempPath;
             $isTempFile = true;
+        } else {
+            if (!file_exists($path)) {
+                throw new BotException("File not found: $path");
+            }
+            if (filesize($path) > $maxSize) {
+                throw new BotException("File size exceeds the 49MB limit.");
+            }
         }
-        $curlFile = curl_file_create($path, "application/octet-stream", $name);
 
-        $postData = [
-            "file" => $curlFile
-        ];
+        $curlFile = curl_file_create($path, "application/octet-stream", $name);
 
         $ch = curl_init();
         curl_setopt_array($ch, [
             CURLOPT_URL => $upload_url,
             CURLOPT_POST => true,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POSTFIELDS => $postData,
+            CURLOPT_POSTFIELDS => ["file" => $curlFile],
         ]);
 
         $response = curl_exec($ch);
+
+        if ($response === false) {
+            $error = curl_error($ch);
+            curl_close($ch);
+            if ($isTempFile && file_exists($path))
+                unlink($path);
+            throw new BotException("cURL error: $error");
+        }
+
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
-        if ($httpCode !== 200)
-            throw new BotException("Upload failed ($httpCode): $response");
-        $data = json_decode($response, true);
-        if ($isTempFile && file_exists($path))
+        if ($isTempFile && file_exists($path)) {
             unlink($path);
-        return $data["data"]["file_id"] ?? throw new BotException("file_id not found in response.");
+        }
+
+        if ($httpCode !== 200) {
+            throw new BotException("Upload failed ($httpCode): $response");
+        }
+
+        $data = json_decode($response, true);
+        if (!is_array($data)) {
+            throw new BotException("Invalid JSON response: $response");
+        }
+
+        $enData = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+
+        return $data["data"]["file_id"] ?? throw new BotException("file_id not found in response. data: $enData");
     }
+
 
 
     /**
@@ -252,7 +335,7 @@ class Bot
         if (!empty($reply)) {
             $json["reply_to_message_id"] = $reply;
         }
-        return $this->init("sendPoll", $json);
+        return $this->_request("sendPoll", $json);
     }
 
     /**
@@ -287,7 +370,7 @@ class Bot
                 $json["chat_keypad_type"] = $options["chat_keypad_type"];
             }
         }
-        return $this->init("sendLocation", $json);
+        return $this->_request("sendLocation", $json);
     }
 
     /**
@@ -324,7 +407,7 @@ class Bot
                 $json["chat_keypad_type"] = $options["chat_keypad_type"];
             }
         }
-        return $this->init("sendContact", $json);
+        return $this->_request("sendContact", $json);
     }
 
     /**
@@ -337,7 +420,7 @@ class Bot
             "chat_id" => $chat_id,
         ];
 
-        return $this->init("getChat", $json);
+        return $this->_request("getChat", $json);
     }
 
     /**
@@ -353,7 +436,7 @@ class Bot
         $limit == 0 ?: $json["limit"] = $limit;
         empty($offset_id) ?: $json["offset_id"] = $offset_id;
 
-        return $this->init("getUpdates", $json);
+        return $this->_request("getUpdates", $json);
     }
 
     /**
@@ -375,7 +458,7 @@ class Bot
                 $json["disable_notification"] = $options["disable_notification"];
             }
         }
-        return $this->init("forwardMessage", $json);
+        return $this->_request("forwardMessage", $json);
     }
 
     /**
@@ -401,7 +484,7 @@ class Bot
         ];
         if ($editMessageBool) {
             $json["text"] = $text;
-            $editText = $this->init("editMessageText", $json);
+            $editText = $this->_request("editMessageText", $json);
         }
         if (!empty($options)) {
             if (isset($options["inline_keypad"])) {
@@ -420,7 +503,7 @@ class Bot
         }
 
         if ($editKeypadBool) {
-            $editKeypad = $this->init("editMessageKeypad", $json);
+            $editKeypad = $this->_request("editMessageKeypad", $json);
         }
         if ($editMessageBool && !$editKeypadBool) {
             return $editText;
@@ -446,7 +529,7 @@ class Bot
             "chat_id" => $chat_id,
             "message_id" => $message_id
         ];
-        return $this->init("deleteMessage", $json);
+        return $this->_request("deleteMessage", $json);
     }
 
     /**
@@ -458,7 +541,7 @@ class Bot
         $json = [
             "bot_commands" => $commands,
         ];
-        return $this->init("setCommands", $json);
+        return $this->_request("setCommands", $json);
     }
 
     public function WebHook(string $url, updateEndpointType $type = updateEndpointType::GetSelectionItem)
@@ -467,10 +550,10 @@ class Bot
             "url" => $url,
             "type" => $type->value
         ];
-        return $this->init("updateBotEndpoints", $json);
+        return $this->_request("updateBotEndpoints", $json);
     }
 
-    public function editChatKeypad(string $chat_id, Keypad $type = Keypad::New, array $options = [])
+    public function editChatKeypad(string $chat_id, Keypad $type = Keypad::New , array $options = [])
     {
         $json = [
             "chat_id" => $chat_id,
@@ -485,7 +568,7 @@ class Bot
         if (isset($options["chat_keypad"])) {
             $json["chat_keypad"] = $options["chat_keypad"];
         }
-        return $this->init("editChatKeypad", $json);
+        return $this->_request("editChatKeypad", $json);
     }
 
     public function setWebHook(string $url): array
@@ -508,7 +591,7 @@ class Bot
         return $update;
     }
 
-    public function init(string $method, array $input = [])
+    public function _request(string $method, array $input = [])
     {
         $url = $this->baseUrl . $this->Token . "/" . $method;
 
