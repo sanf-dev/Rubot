@@ -11,157 +11,23 @@ use RuBot\Enums\{
 
 class Bot
 {
-    private string $Token;
+    private const BASE_URL = "https://botapi.rubika.ir/v3/";
+    private const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+    private const ALLOWED_MEDIA_TYPES = ["File", "Image", "Voice", "Music", "Video", "Gif"];
 
-    public string|false $SecretKey = false;
+    private string $TOKEN;
+    public int $MAX_RETRIES = 3;
+    private int $RETRYCOUNT = 0;
     public int $TimeOut = 10;
-    public bool|string $setWebhookURL = true;
-
-    private string $baseUrl = "https://botapi.rubika.ir/v3/";
 
     public function __construct(string $token)
     {
-        $this->Token = $token;
+        $this->TOKEN = $token;
 
-        if (file_exists("info.json")) {
-            return;
+        if (empty($token)) {
+            throw new BotException("Token cannot be empty.");
         }
-
-        $autoWB = false;
-        $url = null;
-
-
-        if ($this->setWebhookURL === true) {
-            $url = $this->getWebHookAddress();
-            if (!empty($this->SecretKey)) {
-                $url .= "?key=" . $this->SecretKey;
-            }
-            $autoWB = true;
-        } else if (is_string($this->setWebhookURL) && filter_var($this->setWebhookURL, FILTER_VALIDATE_URL)) {
-            $url = $this->setWebhookURL;
-            $autoWB = false;
-        } else {
-            throw new BotException("Error: invalid setWebhookURL value");
-        }
-
-        if (!empty($url) && filter_var($url, FILTER_VALIDATE_URL)) {
-            $responseWB = $this->setWebHook($url);
-        } else {
-            throw new BotException("Error: invalid WebHook URL");
-        }
-
-        $bot_info = $this->getMe()["bot"] ?? "error token";
-        $data = [
-            "rubika bot api - dev:sanfapi | V1.0.1",
-            "config" => [
-                "autoWB" => $autoWB,
-                "secretKey" => "UNK"
-            ],
-            "webhook" => [
-                "url" => $this->removeKeyParam($url),
-                "response" => $responseWB
-            ],
-            "bot" => $bot_info,
-        ];
-        file_put_contents("info.json", json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
     }
-
-    private function removeKeyParam(string $url): string
-    {
-        $parts = parse_url($url);
-        $query = [];
-
-        if (empty($parts) || !isset($parts['query'], $parts['scheme'], $parts['host']))
-            return $url;
-
-        if (!empty($parts['query'])) {
-            parse_str($parts['query'], $query);
-            unset($query['key']);
-        }
-        $newUrl = $parts['scheme'] . '://' . $parts['host']
-            . (isset($parts['path']) ? $parts['path'] : '')
-            . (!empty($query) ? '?' . http_build_query($query) : '');
-
-        return $newUrl;
-    }
-
-    private function getWebHookAddress(): string
-    {
-        $docRoot = realpath($_SERVER['DOCUMENT_ROOT']);
-        $filePath = realpath($_SERVER['SCRIPT_FILENAME']); // <<< اینجا تغییر دادیم
-        if (strpos($filePath, $docRoot) !== 0) {
-            throw new BotException("File is outside of web root.");
-        }
-        $relativePath = str_replace('\\', '/', substr($filePath, strlen($docRoot)));
-        $host = $_SERVER['HTTP_HOST'] ?? "error";
-        return 'https://' . $host . '/' . ltrim($relativePath, '/');
-    }
-
-
-    /**
-     * setSecretKey
-     *
-     * Validates incoming requests against the predefined Secret Key.
-     *
-     * @param bool $Block If true, blocks unauthorized requests. Default = true
-     * @param array $option {
-     *     @type int    $FRCode     HTTP Response code on failure. Default = 403
-     *     @type string $ADMessage  Message to show when access is denied. Default = "Forbidden"
-     *     @type bool|string $AFRedirect URL to redirect on failure. Default = false (no redirect)
-     * }
-     *
-     * @throws \RuBot\Exception\BotException
-     * @return string "ok" if access granted
-     */
-
-    public function setSecretKey(bool $Block = true, array $option = [])
-    {
-        $FRC = $option["FRCode"] ?? 403;
-        $ADM = $option["ADMessage"] ?? "Forbidden";
-        $AFR = $option["AFRedirect"] ?? false;
-
-        if (!$this->SecretKey) {
-            throw new BotException("Please set the access SecretKey first.");
-        }
-
-        if ($Block) {
-            $sendKey = $_GET["key"] ?? "";
-            $sendKey = substr($sendKey, 0, strlen($this->SecretKey));
-
-            $access = strtolower($this->SecretKey) === $sendKey;
-
-            if (!$access) {
-                http_response_code(is_numeric($FRC) ? $FRC : 403);
-
-                if ($AFR) {
-                    header("Location: $AFR");
-                    exit;
-                }
-
-                exit($ADM);
-            }
-        }
-
-        return false;
-    }
-
-    public function checkSecretKey(): bool
-    {
-        if (!$this->SecretKey) {
-            throw new BotException("Please set the access SecretKey first.");
-        }
-        $sendKey = $_GET["key"] ?? "";
-        $sendKey = substr($sendKey, 0, strlen($this->SecretKey));
-
-        $access = strtolower($this->SecretKey) === $sendKey;
-
-        if (!$access) {
-            return true;
-        }
-
-        return false;
-    }
-
 
     /**
      * get Bot Info
@@ -186,13 +52,15 @@ class Bot
         string $reply = "",
         array $options = []
     ) {
+        if (empty($text) || empty($chat_id)) {
+            throw new BotException("Text and chat_id cannot be empty.");
+        }
 
         $json = [
             "chat_id" => $chat_id,
             "text" => $text,
             "parse_mode" => "Markdown"
         ];
-
 
         if (!empty($reply)) {
             $json["reply_to_message_id"] = $reply;
@@ -215,11 +83,23 @@ class Bot
         return $this->_request("sendMessage", $json);
     }
 
+    /**
+     * Sends a file.
+     *
+     * @param string $text Caption
+     * @param string $chat_id Target chat ID
+     * @param string $path File path or URL
+     * @param string $reply Reply to message ID
+     * @param array $options Options [file_id:string, disable_notification:bool, inline_keypad:array, chat_keypad:array, chat_keypad_type:str]
+     * @return array|string
+     * @throws BotException
+     */
     public function sendFile(
         string $text,
         string $chat_id,
         string $path,
         string $reply = "",
+        callable $progress = null,
         array $options = []
     ) {
         if (isset($options["file_id"])) {
@@ -233,7 +113,7 @@ class Bot
                 return "Error : " . $e->getMessage();
             }
             try {
-                $file_id = $this->uploadMediaFile($uploadURL, $fileName, $path);
+                $file_id = $this->uploadMediaFile($uploadURL, $fileName, $path, $progress);
             } catch (BotException $e) {
                 return "Error : " . $e->getMessage();
             }
@@ -280,29 +160,22 @@ class Bot
     {
         $type = strtolower(
             pathinfo(
-                parse_url(
-                    $path,
-                    PHP_URL_PATH
-                ),
+                parse_url($path, PHP_URL_PATH) ?: $path,
                 PATHINFO_EXTENSION
             )
         );
-        $map = [
-            "jpg" => "Image",
-            "jpeg" => "Image",
-            "png" => "Image",
-            "webp" => "Image",
-            "mp3" => "Music",
-            "wav" => "Music",
-            "flac" => "Music",
-            "aac" => "Music",
-            "ogg" => "Voice",
-            "opus" => "Voice",
-            "amr" => "Voice",
-            "gif" => "Gif"
-        ];
-        $getType = $map[$type] ?? "File";
-        return [$getType, $type ?? "unk"];
+
+        $map = match ($type) {
+            "jpg", "jpeg", "png", "webp", "svg" => "Image",
+            "mp3", "wav", "flac", "aac", "m4a", "wma" => "Music",
+            "ogg", "opus", "amr" => "Voice",
+            "gif", "apng" => "Gif",
+            "mp4", "mov", "avi", "mkv" => "Video",
+            "zip", "rar" => "File",
+            default => "File",
+        };
+
+        return [$map, $type ?: "unk"];
     }
 
     public function getFile(string $file_id)
@@ -312,7 +185,7 @@ class Bot
 
     public function getUploadUrl(string $media_type)
     {
-        $allowed = ["File", "Image", "Voice", "Music", "Gif"];
+        $allowed = self::ALLOWED_MEDIA_TYPES;
 
         if (!in_array($media_type, $allowed))
             throw new BotException("Invalid media type. Must be one of: " . implode(", ", $allowed));
@@ -326,22 +199,29 @@ class Bot
         return $response["upload_url"];
     }
 
-    public function uploadMediaFile(string $upload_url, string $name, string $path)
+    public function uploadMediaFile(string $upload_url, string $name, string $path, callable $progress = null)
     {
         $isTempFile = false;
-        $maxSize = 49 * 1024 * 1024; // 49MB
+        $maxSize = self::MAX_FILE_SIZE;
         $tempPath = null;
 
         if (filter_var($path, FILTER_VALIDATE_URL)) {
-            $content = @file_get_contents($path);
+            $context = stream_context_create(['http' => ['timeout' => $this->TimeOut + 20]]);
+            $content = @file_get_contents($path, false, $context);
+
             if ($content === false) {
                 throw new BotException("Failed to download file from URL.");
             }
             if (strlen($content) > $maxSize) {
-                throw new BotException("File size exceeds the 49MB limit.");
+                throw new BotException("File size exceeds the " . (self::MAX_FILE_SIZE / 1024 / 1024) . "MB limit.");
             }
 
-            $tempPath = tempnam(sys_get_temp_dir(), "UPLOADS");
+            $tempPath = tempnam(sys_get_temp_dir(), "_upload");
+            if ($tempPath === false) {
+                mkdir("_upload");
+                $tempPath = tempnam(sys_get_temp_dir(), "_upload");
+            }
+
             file_put_contents($tempPath, $content);
             $path = $tempPath;
             $isTempFile = true;
@@ -349,8 +229,8 @@ class Bot
             if (!file_exists($path)) {
                 throw new BotException("File not found: $path");
             }
-            if (filesize($path) > $maxSize) {
-                throw new BotException("File size exceeds the 49MB limit.");
+            if (filesize($path) > self::MAX_FILE_SIZE) {
+                throw new BotException("File size exceeds the " . (self::MAX_FILE_SIZE / 1024 / 1024) . "MB limit.");
             }
         }
 
@@ -361,8 +241,19 @@ class Bot
             CURLOPT_URL => $upload_url,
             CURLOPT_POST => true,
             CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 0,
             CURLOPT_POSTFIELDS => ["file" => $curlFile],
+            CURLOPT_NOPROGRESS => false
         ]);
+
+        if ($progress !== null) {
+            curl_setopt($ch, CURLOPT_PROGRESSFUNCTION, function ($resource, $download_size, $downloaded, $upload_size, $uploaded) use ($progress) {
+                if ($upload_size > 0) {
+                    $pupload = round(($uploaded / $upload_size) * 100, 2);
+                    $progress($pupload, $uploaded, $upload_size);
+                }
+            });
+        }
 
         $response = curl_exec($ch);
 
@@ -390,9 +281,9 @@ class Bot
             throw new BotException("Invalid JSON response: $response");
         }
 
-        $enData = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        $rawData = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 
-        return $data["data"]["file_id"] ?? throw new BotException("file_id not found in response. data: $enData");
+        return $data["data"]["file_id"] ?? throw new BotException("file_id not found in response. data: $rawData");
     }
 
 
@@ -506,7 +397,7 @@ class Bot
      * @param string $offset_id | next page id
      * @param int $limit | limit
      */
-    public function getUpdates(string $offset_id = "", int $limit = 0)
+    public function getUpdates(int $limit = 0, string $offset_id = "")
     {
         $json = [
             "getUpdates" => true
@@ -649,7 +540,7 @@ class Bot
         return $this->_request("editChatKeypad", $json);
     }
 
-    public function setWebHook(string $url): array
+    public function setWebHook(string $url)
     {
         $response = [];
         foreach (updateEndpointType::cases() as $updateType) {
@@ -659,47 +550,289 @@ class Bot
         return $response;
     }
 
-    public function onMessage(callable $callback)
+    /**
+     * download file from file_id or url
+     * @param string $url
+     * @param mixed $fileName
+     * @param callable $progress
+     * @throws \RuBot\Exception\BotException
+     * @return string
+     */
+    public function download(string $file_id, ?string $fileName = null, callable $progress = null): string
+    {
+        if (substr($file_id, 0, 7) == "http://" || substr($file_id, 0, 8) == "https://") {
+            $url = $file_id;
+        } else {
+            $getUrl = $this->getFile($file_id);
+            if (!isset($getUrl["download_url"])) {
+                return "error get url from file_id" . json_encode($getUrl);
+            }
+            $url = $getUrl["download_url"];
+        }
+        $downloadDir = '_download';
+        if (!is_dir($downloadDir)) {
+            mkdir($downloadDir, 0777, true);
+        }
+
+        if ($fileName === null) {
+            $fileName = basename(parse_url($url, PHP_URL_PATH));
+            if (empty($fileName)) {
+                $fileName = 'download_' . time();
+            }
+        }
+
+        $savePath = $downloadDir . DIRECTORY_SEPARATOR . $fileName;
+        $fp = fopen($savePath, 'ab');
+        if (!$fp) {
+            throw new BotException("Cannot open file: $savePath");
+        }
+
+        $ch = curl_init($url);
+
+        $fileSize = filesize($savePath);
+        if ($fileSize > 0) {
+            curl_setopt($ch, CURLOPT_RANGE, $fileSize . "-");
+        }
+
+        curl_setopt_array($ch, [
+            CURLOPT_FILE => $fp,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_CONNECTTIMEOUT => 15,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_USERAGENT => "RuBotDl/1.1.0",
+            CURLOPT_NOPROGRESS => false,
+            CURLOPT_PROGRESSFUNCTION => function ($resource, $download_size, $downloaded, $upload_size, $uploaded) use ($progress, $fileSize) {
+                if ($download_size > 0 && is_callable($progress)) {
+                    $total = $download_size + $fileSize;
+                    $current = $downloaded + $fileSize;
+                    $percent = (int) round(($current / $total) * 100);
+                    $progress((int) $percent, $current, $total);
+                }
+            }
+        ]);
+
+        $success = curl_exec($ch);
+
+        if ($success === false) {
+            throw new BotException("cURL Error: " . curl_error($ch));
+        }
+
+        curl_close($ch);
+        fclose($fp);
+
+        return $savePath;
+    }
+
+    /**
+     * stream Upload file from url
+     * @param string $downloadUrl
+     * @param mixed $fileName
+     * @param callable $progress
+     * @throws \RuBot\Exception\BotException
+     * @return string
+     */
+    public function streamUpload(string $downloadUrl, ?string $fileName = null, callable $progress = null): string
+    {
+        $fileType = $this->detectFileType($downloadUrl);
+        $fileName = self::getFileName($downloadUrl);
+        try {
+            $uploadUrl = $this->getUploadUrl($fileType[0]);
+        } catch (BotException $e) {
+            return "Error : " . $e->getMessage();
+        }
+
+        if ($fileName === null) {
+            $fileName = basename(parse_url($downloadUrl, PHP_URL_PATH)) ?: 'file_' . time();
+        }
+
+        $downloadStream = fopen($downloadUrl, 'rb');
+        if (!$downloadStream)
+            throw new BotException("Cannot open download URL");
+        $pipe = tmpfile();
+        if (!$pipe) {
+            fclose($downloadStream);
+            throw new BotException("Cannot create temp upload stream");
+        }
+
+        $chunkSize = 1024 * 1024;
+        $totalDownloaded = 0;
+        $totalSize = 0;
+
+        $headers = get_headers($downloadUrl, 1);
+        if (isset($headers['Content-Length']))
+            $totalSize = (int) $headers['Content-Length'];
+
+        while (!feof($downloadStream)) {
+            $chunk = fread($downloadStream, $chunkSize);
+            if ($chunk === false)
+                break;
+            $len = strlen($chunk);
+            $totalDownloaded += $len;
+            fwrite($pipe, $chunk);
+
+            if ($progress && $totalSize > 0) {
+                $percent = (int) (($totalDownloaded / $totalSize) * 50);
+                $progress($percent, $totalDownloaded, 0, $totalSize);
+            }
+        }
+
+        rewind($pipe);
+        fclose($downloadStream);
+
+        $chUpload = curl_init($uploadUrl);
+        curl_setopt($chUpload, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($chUpload, CURLOPT_POST, true);
+        curl_setopt($chUpload, CURLOPT_POSTFIELDS, [
+            'file' => curl_file_create(stream_get_meta_data($pipe)['uri'], 'application/octet-stream', $fileName)
+        ]);
+
+        if ($progress) {
+            curl_setopt($chUpload, CURLOPT_NOPROGRESS, false);
+            curl_setopt($chUpload, CURLOPT_PROGRESSFUNCTION, function ($ch, $dlTotal, $dlNow, $upTotal, $upNow) use ($progress, $totalDownloaded, $totalSize) {
+                if ($upTotal > 0) {
+                    $percent = 50 + (int) (($upNow / $upTotal) * 50);
+                    $progress($percent, $totalDownloaded, $upNow, $totalSize + $upTotal);
+                }
+            });
+        }
+
+        $response = curl_exec($chUpload);
+        if ($response === false) {
+            $err = curl_error($chUpload);
+            curl_close($chUpload);
+            fclose($pipe);
+            throw new BotException("Upload error: $err");
+        }
+
+        curl_close($chUpload);
+        fclose($pipe);
+
+        $json = json_decode($response, true);
+        if (!is_array($json))
+            throw new BotException("Invalid JSON response: $response");
+
+        if (!isset($json['data']['file_id']) || !is_string($json['data']['file_id'])) {
+            throw new BotException("Invalid JSON response: $response");
+        }
+
+        return $json['data']['file_id'];
+    }
+
+    public function hasTime(int $timestamp, int $seconds = 10): bool
+    {
+        return (time() - $timestamp) <= $seconds;
+    }
+
+    /**
+     * onMessage
+     * @param callable[] $handlers
+     * @return array
+     */
+    public function onMessage(callable ...$handlers)
     {
         $update = json_decode(file_get_contents("php://input"), true);
-        if ($update) {
-            $message = new Message($update, $this);
-            $callback($message);
+        if (!is_array($update)) {
+            return [];
         }
-        return $update;
+        $message = new Message($update, $this);
+        return array_map(fn($handler) => $handler($message), $handlers);
+    }
+    /**
+     * Listen for new updates and dispatch them to handlers.
+     *
+     * @param array{
+     *     limit?: 'maximum number of updates to fetch (int-default = 100)',
+     *     timeout?: 'long-polling timeout in seconds (int-default = 1)',
+     *     offset_id?: 'last processed update id (string-default = "")'
+     * } $config Configuration options for update polling
+     *
+     * @param callable[] $handlers List of handler callbacks that process each update
+     *
+     * @return never This method runs an infinite loop and never returns
+     */
+    public function onUpdate(array $config = [], callable ...$handlers): never
+    {
+        $limit = $config["limit"] ?? 100;
+        $timeout = $config["timeout"] ?? 1;
+        $offset_id = $config["offset_id"] ?? "";
+
+        while (true) {
+            $data = $this->getUpdates($limit, $offset_id);
+
+            if (isset($data["next_offset_id"])) {
+                $offset_id = $data["next_offset_id"];
+            } else {
+                continue;
+            }
+
+            if (!empty($data["updates"])) {
+                foreach ($data["updates"] as $update) {
+                    if (!isset($update["new_message"]["time"]))
+                        continue;
+
+                    $timestamp = (int) $update["new_message"]["time"];
+                    if ($this->hasTime($timestamp)) {
+                        $message = new Message(["update" => $update], $this);
+                        // $handlers($message);
+                        array_map(fn($handler) => $handler($message), $handlers);
+                    } else {
+                        continue;
+                    }
+                }
+            }
+
+            sleep($timeout);
+        }
     }
 
     public function _request(string $method, array $input = [])
     {
-        $url = $this->baseUrl . $this->Token . "/" . $method;
+        $url = self::BASE_URL . $this->TOKEN . "/" . $method;
+        $maxRetries = $this->MAX_RETRIES;
+        $retryCount = $this->RETRYCOUNT;
+        $lastError = null;
 
-        $ch = curl_init($url);
-        curl_setopt_array($ch, [
-            CURLOPT_POST => true,
-            CURLOPT_HTTPHEADER => ["Content-Type: application/json"],
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => $this->TimeOut,
-            CURLOPT_POSTFIELDS => json_encode($input, JSON_UNESCAPED_UNICODE),
-        ]);
+        while ($retryCount < $maxRetries) {
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_POST => true,
+                CURLOPT_HTTPHEADER => ["Content-Type: application/json"],
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT => $this->TimeOut,
+                CURLOPT_POSTFIELDS => json_encode($input, JSON_UNESCAPED_UNICODE),
+            ]);
 
-        $rawResponse = curl_exec($ch);
-
-        if (curl_errno($ch)) {
-            $error = curl_error($ch);
+            $rawResponse = curl_exec($ch);
+            $curlErr = curl_errno($ch) ? curl_error($ch) : null;
             curl_close($ch);
-            throw new BotException("Error: " . $error);
+
+            if ($curlErr) {
+                $lastError = $curlErr;
+                $retryCount++;
+                echo "Trying to connect... - $retryCount\n";
+                if ($retryCount < $maxRetries) {
+                    sleep(pow(2, $retryCount - 1));
+                    continue;
+                }
+                throw new BotException("cURL error after $retryCount retries: " . $lastError);
+            }
+
+            $response = json_decode($rawResponse, true);
+
+            if (!is_array($response)) {
+                $lastError = "Invalid JSON: " . $rawResponse;
+                $retryCount++;
+                echo "Trying to connect... - $retryCount";
+                if ($retryCount < $maxRetries) {
+                    sleep(pow(2, $retryCount - 1));
+                    continue;
+                }
+                throw new BotException("Invalid JSON response after $retryCount retries: " . $rawResponse);
+            }
+            return $response["status"] === "OK" ? $response["data"] : $response;
         }
-
-        $response = json_decode($rawResponse, true);
-
-        if (!is_array($response)) {
-            curl_close($ch);
-            throw new BotException("Invalid JSON response: " . $rawResponse);
-        }
-
-        curl_close($ch);
-        @http_response_code(200);
-
-        return $response["status"] === "OK" ? $response["data"] : $response;
+        throw new BotException("Request failed after $maxRetries retries: " . $lastError);
     }
+
 }

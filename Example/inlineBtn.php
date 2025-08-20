@@ -3,7 +3,7 @@
 
 ini_set("display_errors", 0);
 ini_set("log_errors", 1);
-ini_set("error_log", "/php_errors.log");
+ini_set("error_log", "php_errors.log");
 error_reporting(E_ALL);
 
 require "vendor/autoload.php";
@@ -147,22 +147,22 @@ $run = function (Message $update) use ($bot, $inlineBTN, $ChatKeyPadBTN) {
         $update->reply("github : https://github.com/sanf-dev/", $ChatKeyPadBTN);
     }
 
-    if ($update->filter(When::ButtonID("loc"))) {
+    if ($update->filter(When::Button_Id("loc"))) {
         $update->reply(json_encode($update->location()));
     }
-    if ($update->filter(When::ButtonID("num"))) {
+    if ($update->filter(When::Button_Id("num"))) {
         $update->reply($text ?? "number picker");
     }
-    if ($update->filter(When::ButtonID("selection"))) {
+    if ($update->filter(When::Button_Id("selection"))) {
         $update->reply($text ?? "selection");
     }
-    if ($update->filter(When::ButtonID("str"))) {
+    if ($update->filter(When::Button_Id("str"))) {
         $update->reply($text ?? "string picker");
     }
-    if ($update->filter(When::ButtonID("textbox"))) {
+    if ($update->filter(When::Button_Id("textbox"))) {
         $update->reply($text ?? "textBox");
     }
-    if ($update->filter(When::ButtonID("remove"))) {
+    if ($update->filter(When::Button_Id("remove"))) {
         $update->removeChatKeyPad();
         $update->reply("ok");
     }

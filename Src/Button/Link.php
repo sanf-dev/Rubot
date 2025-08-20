@@ -9,7 +9,7 @@ class Link
 {
     private array $rows = [];
 
-    public function type(LinkType $type = LinkType::url): self
+    private function type(LinkType $type = LinkType::url): self
     {
         $this->rows["type"] = $type->value;
         return $this;
@@ -17,6 +17,7 @@ class Link
 
     public function joinChannel(string $username, bool $ask_join = true)
     {
+        $this->type(LinkType::joinchannel);
         $this->rows["joinchannel_data"] = [
             "username" => $username,
             "ask_join" => $ask_join
@@ -26,6 +27,7 @@ class Link
 
     public function Link(string $link)
     {
+        $this->type(LinkType::url);
         $this->rows["link_url"] = $link;
         return $this;
     }
