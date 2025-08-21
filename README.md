@@ -1,4 +1,9 @@
-<p align="center"><b>RoBot | Rubika Bot API Library</b></p>
+<h2 align="center">Rubot | Rubika Bot API Library</h2>
+
+# Rubot
+
+A modern PHP library for building bots on Rubika platform.
+Supports sending messages, keyboards, files and more.
 
 ## Rubika Bot Api
 
@@ -31,6 +36,8 @@ $bot = new Bot("BOT_TOKEN");
 $run = function (Message $update) use ($bot) {
     $update->reply("Hello, user");
 };
+
+$bot->onMessage($run);
 ```
 
 ---
