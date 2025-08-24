@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace RuBot\Tools;
 
 use RuBot\Enums\Field;

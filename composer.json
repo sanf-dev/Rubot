@@ -2,11 +2,15 @@
   "name": "sanf/rubot",
   "type": "library",
   "version": "v1.0.0",
-  "description": "Rubika Bot API SDK in PHP",
+  "description": "Rubot - Rubika Bot API SDK in PHP",
   "keywords": [
     "Rubika",
     "Bot",
-    "Rubika-Bot"
+    "Rubika-Bot",
+    "Rubot",
+    "php",
+    "php-bot",
+    "bot-php"
   ],
   "homepage": "https://github.com/sanf-dev/RuBot",
   "license": "MIT",

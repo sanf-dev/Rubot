@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace RuBot\Tools;
 
 use RuBot\Tools\{
@@ -169,7 +171,7 @@ class Message
     {
         return $this->getParam([
             ["inline_message"]
-        ], []);
+        ]);
     }
 
     public function rawData(): array
@@ -265,6 +267,7 @@ class Message
             "is_location" => !$this->location()->is_empty(),
             "is_contact" => !$this->contact()->is_empty(),
             "is_forward" => !$this->forwarded()->is_empty(),
+            "is_inline", => !is_null($this->inline_message()),
             "is_user" => !is_null($this->sender_type()) && substr($this->chat_id(), 0, 1) == "b",
             "is_group" => !is_null($this->chat_id()) && substr($this->chat_id(), 0, 1) == "g",
             "is_channel" => !is_null($this->chat_id()) && substr($this->chat_id(), 0, 1) == "c",

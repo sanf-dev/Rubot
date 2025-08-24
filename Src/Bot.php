@@ -1,5 +1,8 @@
 <?php
 
+declare(strict_types=1);
+
+
 namespace RuBot;
 
 use RuBot\Exception\BotException;
@@ -11,6 +14,56 @@ use RuBot\Enums\{
 
 class Bot
 {
+    /** @var \CurlHandle|null */
+    private $ch = null;
+
+    private function getCurl()
+    {
+        if (!$this->ch) {
+            $this->ch = curl_init();
+        }
+        if (function_exists('curl_reset')) {
+            curl_reset($this->ch);
+        }
+        return $this->ch;
+    }
+
+    private function baseCurlOptions(): array
+    {
+        return [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_CONNECTTIMEOUT => 5,
+            CURLOPT_TIMEOUT => 20,
+            CURLOPT_TCP_KEEPALIVE => 1,
+            CURLOPT_TCP_KEEPIDLE => 30,
+            CURLOPT_TCP_KEEPINTVL => 15,
+            CURLOPT_ENCODING => "",
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_2TLS,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
+            CURLOPT_HTTPHEADER => [
+                "Accept: application/json",
+                "Accept-Charset: UTF-8",
+                "Expect:"
+            ],
+            CURLOPT_USERAGENT => $this->userAgent ?? "RuBot/1.1.0",
+        ];
+    }
+
+    private function jitterSleepSeconds($seconds): void
+    {
+        $base = max(250000, (int) ($seconds * 1000000));
+        $cap = 5000000;
+        $delay = min($cap, $base);
+        try {
+            $j = random_int(0, (int) ($delay * 0.25));
+        } catch (\Throwable $e) {
+            $j = 0;
+        }
+        usleep($delay + $j);
+    }
+
     private const BASE_URL = "https://botapi.rubika.ir/v3/";
     private const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
     private const ALLOWED_MEDIA_TYPES = ["File", "Image", "Voice", "Music", "Video", "Gif"];
@@ -97,33 +150,51 @@ class Bot
     public function sendFile(
         string $text,
         string $chat_id,
-        string $path,
-        string $reply = "",
-        callable $progress = null,
+        ?string $path = null,
+        ?string $reply = "",
+        ?callable $progress = null,
         array $options = []
     ) {
         if (isset($options["file_id"])) {
             $file_id = $options["file_id"];
         } else {
-            $fileType = $this->detectFileType($path);
-            $fileName = self::getFileName($path);
-            try {
-                $uploadURL = $this->getUploadUrl($fileType[0]);
-            } catch (BotException $e) {
-                return "Error : " . $e->getMessage();
+            if (is_null($path) || empty($path)) {
+                return "File Not Found";
             }
-            try {
-                $file_id = $this->uploadMediaFile($uploadURL, $fileName, $path, $progress);
-            } catch (BotException $e) {
-                return "Error : " . $e->getMessage();
-            }
+            $fileType = $this->detectFileType(
+                isset($options["file_name"]) ? $options["file_name"] : $path
+            );
+            $fileName = self::getFileName(
+                isset($options["file_name"]) ? $options["file_name"] : $path
+            );
+
+            if (preg_match('#^https?://#i', $path)) {
+                try {
+                    $file_id = $this->streamUpload($path, $fileName, $progress, $options);
+                } catch (BotException $e) {
+                    return "Error Upload File : " . $e->getMessage();
+                }
+            } elseif (file_exists($path)) {
+                try {
+                    $uploadURL = $this->getUploadUrl($fileType[0]);
+                } catch (BotException $e) {
+                    return "Error : " . $e->getMessage();
+                }
+                try {
+                    $file_id = $this->uploadMediaFile($uploadURL, $fileName, $path, $progress);
+                } catch (BotException $e) {
+                    return "Error : " . $e->getMessage();
+                }
+            } else
+                return "File Not Found";
+
         }
         $json = [
             "chat_id" => $chat_id,
             "text" => $text,
             "file_id" => $file_id,
         ];
-        if (!empty($reply)) {
+        if (!empty($reply) || !is_null($reply)) {
             $json["reply_to_message_id"] = $reply;
         }
 
@@ -183,7 +254,7 @@ class Bot
         return $this->_request("getFile", ["file_id" => $file_id]);
     }
 
-    public function getUploadUrl(string $media_type)
+    private function getUploadUrl(string $media_type)
     {
         $allowed = self::ALLOWED_MEDIA_TYPES;
 
@@ -199,7 +270,7 @@ class Bot
         return $response["upload_url"];
     }
 
-    public function uploadMediaFile(string $upload_url, string $name, string $path, callable $progress = null)
+    private function uploadMediaFile(string $upload_url, string $name, string $path, callable $progress = null)
     {
         $isTempFile = false;
         $maxSize = self::MAX_FILE_SIZE;
@@ -207,7 +278,7 @@ class Bot
 
         if (filter_var($path, FILTER_VALIDATE_URL)) {
             $context = stream_context_create(['http' => ['timeout' => $this->TimeOut + 20]]);
-            $content = @file_get_contents($path, false, $context);
+            $content = file_get_contents($path, false, $context);
 
             if ($content === false) {
                 throw new BotException("Failed to download file from URL.");
@@ -236,8 +307,8 @@ class Bot
 
         $curlFile = curl_file_create($path, "application/octet-stream", $name);
 
-        $ch = curl_init();
-        curl_setopt_array($ch, [
+        $ch = $this->getCurl();
+        curl_setopt_array($ch, $this->baseCurlOptions() + [
             CURLOPT_URL => $upload_url,
             CURLOPT_POST => true,
             CURLOPT_RETURNTRANSFER => true,
@@ -276,7 +347,7 @@ class Bot
             throw new BotException("Upload failed ($httpCode): $response");
         }
 
-        $data = json_decode($response, true);
+        $data = json_decode($response, true, 512, JSON_THROW_ON_ERROR);
         if (!is_array($data)) {
             throw new BotException("Invalid JSON response: $response");
         }
@@ -594,7 +665,7 @@ class Bot
             curl_setopt($ch, CURLOPT_RANGE, $fileSize . "-");
         }
 
-        curl_setopt_array($ch, [
+        curl_setopt_array($ch, $this->baseCurlOptions() + [
             CURLOPT_FILE => $fp,
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_TIMEOUT => 0,
@@ -629,13 +700,18 @@ class Bot
      * @param string $downloadUrl
      * @param mixed $fileName
      * @param callable $progress
+     * @param mixed $options
      * @throws \RuBot\Exception\BotException
      * @return string
      */
-    public function streamUpload(string $downloadUrl, ?string $fileName = null, callable $progress = null): string
+    public function streamUpload(string $downloadUrl, ?string $fileName = null, callable $progress = null, $options = []): string
     {
-        $fileType = $this->detectFileType($downloadUrl);
-        $fileName = self::getFileName($downloadUrl);
+        $fileType = $this->detectFileType(
+            isset($options["file_name"]) ? $options["file_name"] : $downloadUrl
+        );
+        $fileName = self::getFileName(
+            isset($options["file_name"]) ? $options["file_name"] : $downloadUrl
+        );
         try {
             $uploadUrl = $this->getUploadUrl($fileType[0]);
         } catch (BotException $e) {
@@ -659,7 +735,7 @@ class Bot
         $totalDownloaded = 0;
         $totalSize = 0;
 
-        $headers = get_headers($downloadUrl, 1);
+        $headers = get_headers($downloadUrl, true);
         if (isset($headers['Content-Length']))
             $totalSize = (int) $headers['Content-Length'];
 
@@ -708,7 +784,7 @@ class Bot
         curl_close($chUpload);
         fclose($pipe);
 
-        $json = json_decode($response, true);
+        $json = json_decode($response, true, 512, JSON_THROW_ON_ERROR);
         if (!is_array($json))
             throw new BotException("Invalid JSON response: $response");
 
@@ -731,7 +807,11 @@ class Bot
      */
     public function onMessage(callable ...$handlers)
     {
-        $update = json_decode(file_get_contents("php://input"), true);
+        $data =
+            $update = json_decode(
+                file_get_contents("php://input"),
+                true
+            );
         if (!is_array($update)) {
             return [];
         }
@@ -754,7 +834,7 @@ class Bot
     public function onUpdate(array $config = [], callable ...$handlers): never
     {
         $limit = $config["limit"] ?? 100;
-        $timeout = $config["timeout"] ?? 1;
+        $timeout = $config["timeout"] ?? 0;
         $offset_id = $config["offset_id"] ?? "";
 
         while (true) {
@@ -782,7 +862,7 @@ class Bot
                 }
             }
 
-            sleep($timeout);
+            $this->jitterSleepSeconds($timeout);
         }
     }
 
@@ -795,7 +875,7 @@ class Bot
 
         while ($retryCount < $maxRetries) {
             $ch = curl_init($url);
-            curl_setopt_array($ch, [
+            curl_setopt_array($ch, $this->baseCurlOptions() + [
                 CURLOPT_POST => true,
                 CURLOPT_HTTPHEADER => ["Content-Type: application/json"],
                 CURLOPT_RETURNTRANSFER => true,
