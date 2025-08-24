@@ -13,6 +13,7 @@ enum Filter: string
     case is_location = "is_location";
     case is_contact = "is_contact";
     case is_forward = "is_forward";
+    case is_inline = "is_inline";
     case is_user = "is_user";
     case is_group = "is_group";
     case is_channel = "is_channel";
