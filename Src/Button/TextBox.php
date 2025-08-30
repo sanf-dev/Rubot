@@ -1,9 +1,9 @@
 <?php
 
-namespace RuBot\Button;
+namespace Rubot\Button;
 
-use RuBot\Enums\Type_line;
-use RuBot\Enums\Type_keypad;
+use Rubot\Enums\Type_line;
+use Rubot\Enums\Type_keypad;
 
 class TextBox
 {

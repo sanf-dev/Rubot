@@ -1,8 +1,8 @@
 <?php
 
-namespace RuBot\Button;
+namespace Rubot\Button;
 
-use RuBot\Enums\Date;
+use Rubot\Enums\Date;
 
 class Calendar
 {

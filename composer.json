@@ -1,8 +1,8 @@
 {
   "name": "sanf/rubot",
   "type": "library",
-  "version": "v1.0.0",
-  "description": "Rubot - Rubika Bot API SDK in PHP",
+  "version": "v2.1.0",
+  "description": "Rubot is a PHP framework for building Rubika bots efficiently and reliably, with full support for messaging, media, and user interactions.\nRubot - Rubika Bot API SDK in PHP",
   "keywords": [
     "Rubika",
     "Bot",
@@ -12,7 +12,7 @@
     "php-bot",
     "bot-php"
   ],
-  "homepage": "https://github.com/sanf-dev/RuBot",
+  "homepage": "https://doc.artusha.ir",
   "license": "MIT",
   "authors": [
     {
@@ -22,11 +22,14 @@
   ],
   "autoload": {
     "psr-4": {
-      "RuBot\\": "Src/"
+      "Rubot\\": "src/",
+      "RubCli\\": "client/"
     }
   },
   "require": {
-    "php": ">=8.1"
+    "php": ">=8.1",
+    "vlucas/phpdotenv": "5.6",
+    "guzzlehttp/guzzle": "7.8"
   },
   "archive": {
     "exclude": [

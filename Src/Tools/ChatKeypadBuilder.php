@@ -1,9 +1,9 @@
 <?php
 
-namespace RuBot\Tools;
+namespace Rubot\Tools;
 
 use Rubot\Enums\ButtonType;
-use RuBot\Enums\Keypad;
+use Rubot\Enums\KeypadType;
 
 class ChatKeypadBuilder
 {
@@ -38,7 +38,7 @@ class ChatKeypadBuilder
         return $this;
     }
 
-    public function build(Keypad $type = Keypad::New): array
+    public function build(KeypadType $type = KeypadType::New): array
     {
         return [
             "chat_keypad_type" => $type->value,

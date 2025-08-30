@@ -1,8 +1,8 @@
 <?php
 
-namespace RuBot\Button;
+namespace Rubot\Button;
 
-use RuBot\Enums\ButtonSelectionSearch;
+use Rubot\Enums\ButtonSelectionSearch;
 
 class Selection
 {

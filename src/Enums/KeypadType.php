@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Rubot\Enums;
 
-enum keypad: string
+enum KeypadType: string
 {
     case None = "None";
     case New = "New";

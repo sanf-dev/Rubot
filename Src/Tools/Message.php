@@ -1,277 +1,308 @@
 <?php
 
-declare(strict_types=1);
+namespace Rubot\Tools;
 
-namespace RuBot\Tools;
+use Rubot\Enums\{
+    KeypadType,
+    Field
+};
 
-use RuBot\Tools\{
-    Param,
-    NullParam
-};
-use RuBot\Enums\{
-    Keypad,
-    Filter
-};
 
 class Message
 {
     private array $data;
-    private object $bot;
+    private readonly object $bot;
 
     public function __construct(array $update, object $bot)
     {
-        $this->data = $update;
+        $this->data = $this->Jsonflatten($update["update"] ?? $update ?? []);
         $this->bot = $bot;
     }
 
-    private function getParam(array $paths, $default = null)
+    // ----------- ANALIZ JSON DATA -----------
+    private function Jsonflatten(array $array): array
     {
-        foreach ($paths as $path) {
-            $temp = $this->data;
-            foreach ($path as $key) {
-                if (!isset($temp[$key])) {
-                    continue 2;
-                }
-                $temp = $temp[$key];
+        $flat = [];
+        foreach ($array as $key => $value) {
+            if (is_array($value) && $this->isAssoc($value)) {
+                $flat = array_merge($flat, $value);
+            } else {
+                $flat[$key] = $value;
             }
-            return $temp;
         }
-        return $default;
+        return $flat;
     }
 
-    public function text(): ?string
+    private function isAssoc(array $arr): bool
     {
-        return $this->getParam([
-            ["update", "new_message", "text"],
-            ["update", "updated_message", "text"],
-            ["inline_message", "text"]
-        ]);
+        $i = 0;
+        foreach ($arr as $k => $_) {
+            if ($k !== $i++)
+                return true;
+        }
+        return false;
     }
 
-    public function chat_id(): string|int|null
+    // ----------- GET JSON PARAM -----------
+    public function text()
     {
-        return $this->getParam([
-            ["update", "chat_id"],
-            ["inline_message", "chat_id"],
-            ["update", "new_message", "forwarded_from", "from_chat_id"]
-        ]);
+        return $this->data["text"] ?? false;
     }
 
-    public function message_id(): string|int|null
+    public function chat_id()
     {
-        return $this->getParam([
-            ["update", "new_message", "message_id"],
-            ["update", "updated_message", "message_id"],
-            ["inline_message", "message_id"]
-        ]);
+        return $this->data["chat_id"] ?? $this->data["forwarded_from"] ?? false;
     }
 
-    public function reply_to_message_id(): string|int|null
+    public function message_id()
     {
-        return $this->getParam([
-            ["update", "new_message", "reply_to_message_id"],
-            ["update", "updated_message", "reply_to_message_id"],
-            ["inline_message", "reply_to_message_id"]
-        ]);
+        return $this->data["message_id"] ?? null;
     }
 
-    public function getTime(): int|string|null
+    public function reply_to_message_id()
     {
-        return $this->getParam([
-            ["update", "new_message", "time"],
-            ["update", "updated_message", "time"]
-        ]);
+        return $this->data["reply_to_message_id"] ?? null;
     }
 
-    public function is_edit(): ?bool
+    public function getTime()
     {
-        return $this->getParam([
-            ["update", "new_message", "is_edited"],
-            ["update", "updated_message", "is_edited"]
-        ], false);
+        return $this->data["time"] ?? false;
     }
 
-    public function sender_type(): ?string
+    public function is_edited()
     {
-        return $this->getParam([
-            ["update", "new_message", "sender_type"],
-            ["update", "updated_message", "sender_type"]
-        ]);
+        return $this->data["is_edited"] ?? false;
     }
 
-
-    public function sender_id(): string|int|null
+    public function sender_type()
     {
-        return $this->getParam([
-            ["update", "new_message", "sender_id"],
-            ["update", "updated_message", "sender_id"],
-            ["inline_message", "sender_id"]
-        ]);
+        return $this->data["sender_type"] ?? false;
     }
 
-    public function button_id(): string|int|null
+    public function sender_id()
     {
-        return $this->getParam([
-            ["update", "new_message", "aux_data", "button_id"],
-            ["update", "updated_message", "aux_data", "button_id"],
-            ["inline_message", "aux_data", "button_id"]
-        ]);
+        return $this->data["sender_id"] ?? false;
     }
 
-    public function getFile(): ?Param
+    public function button_id()
     {
-        $data = $this->getParam([
-            ["update", "new_message", "file"],
-            ["update", "updated_message", "file"],
-            ["inline_message", "file"]
-        ]);
-        return $data ? new Param($data) : new NullParam();
+        return $this->data["aux_data"]["button_id"] ?? false;
     }
 
-
-    public function location(): ?Param
+    public function File(?Field $field = null)
     {
-        $data = $this->getParam([
-            ["update", "new_message", "location"],
-            ["update", "updated_message", "location"],
-            ["inline_message", "location"]
-        ]);
-        return $data ? new Param($data) : new NullParam();
+        if (!is_null($field) && in_array($field, Field::fileFields()))
+            return $this->data["file"][$field->value] ?? false;
+        return $this->data["file"] ?? false;
+
     }
 
-    public function contact(): ?Param
+    public function location(?Field $field = null)
     {
-        $data = $this->getParam([
-            ["update", "new_message", "contact_message"],
-            ["update", "updated_message", "contact_message"],
-            ["inline_message", "contact_message"]
-        ]);
-        return $data ? new Param($data) : new NullParam();
+        if (!is_null($field) && in_array($field, Field::locationFields()))
+            return $this->data["location"][$field->value] ?? false;
+        return $this->data["location"] ?? false;
     }
 
-    public function forwarded(): ?Param
+    public function contact(?Field $field = null)
     {
-        $data = $this->getParam([
-            ["update", "new_message", "forwarded_from"],
-            ["update", "new_message", "forwarded_no_link"]
-        ]);
-        return $data ? new Param($data) : new NullParam();
+        if (!is_null($field) && in_array($field, Field::contactFields()))
+            return $this->data["contact"][$field->value] ?? false;
+        return $this->data["contact"] ?? false;
     }
 
-    public function start_id(): int|string|null
+    public function forwarded(?Field $field = null)
     {
-        return $this->getParam([
-            ["update", "new_message", "aux_data", "start_id"],
-            ["update", "updated_message", "aux_data", "start_id"],
-            ["inline_message", "aux_data", "start_id"]
-        ]);
+        if (!is_null($field) && in_array($field, Field::contactFields()))
+            return $this->data["forwarded_from"][$field->value] ?? $this->data["forwarded_no_link"][$field->value] ?? false;
+        return $this->data["forwarded_from"] ?? $this->data["forwarded_no_link"] ?? false;
     }
 
-    public function inline_message(): ?array
+    public function start_id()
     {
-        return $this->getParam([
-            ["inline_message"]
-        ]);
+        return $this->data["aux_data"]["start_id"] ?? false;
     }
 
-    public function rawData(): array
+    public function rawData()
     {
         return $this->data;
     }
 
-    public function reply(string $text, array $options = [])
-    {
-        return $this->bot->sendMessage($text, $this->chat_id(), $this->message_id(), $options);
+
+    // ----------- SEND METHODES -----------
+    public function reply(
+        string $text,
+        array $other = []
+    ) {
+        return $this->bot->sendMessage(
+            $this->chat_id(),
+            $text,
+            $this->message_id(),
+            false,
+            $other
+        );
     }
 
-    public function replyFile(string $text, string $path, array $options = [])
-    {
-        return $this->bot->sendFile($text, $this->chat_id(), $path, $this->message_id(), $options);
+    public function replyFile(
+        string $text,
+        string $file,
+        ?string $file_name = null,
+        ?callable $progress = null,
+        array $other = []
+    ) {
+        return $this->bot->sendFile(
+            $this->chat_id(),
+            $text,
+            $file,
+            $file_name,
+            $this->message_id(),
+            false,
+            $progress,
+            $other
+        );
     }
 
-    public function sendPoll(string $question, array $options)
-    {
-        return $this->bot->sendPoll($this->chat_id(), $question, $options, $this->message_id());
+    public function sendPoll(
+        string $question,
+        array $options,
+        array $other = []
+    ) {
+        return $this->bot->sendPoll(
+            $this->chat_id(),
+            $question,
+            $options,
+            $this->message_id(),
+            false,
+            $other
+        );
     }
 
-    public function sendLocation(string $latitude, string $longitude, array $options = [])
-    {
-        return $this->bot->sendLocation($this->chat_id(), $latitude, $longitude, $this->message_id(), $options);
+    public function sendLocation(
+        string $latitude,
+        string $longitude,
+        array $other = []
+    ) {
+        return $this->bot->sendLocation(
+            $this->chat_id(),
+            $latitude,
+            $longitude,
+            $this->message_id(),
+            false,
+            $other
+        );
     }
 
-    public function sendContact(string $phone, string $first_name, string $last_name, array $options = [])
-    {
-        return $this->bot->sendContact($this->chat_id(), $phone, $first_name, $last_name, $this->message_id(), $options);
+    public function sendContact(
+        string $phone,
+        string $first_name,
+        string $last_name,
+        array $other = []
+    ) {
+        return $this->bot->sendContact(
+            $this->chat_id(),
+            $phone,
+            $first_name,
+            $last_name,
+            $this->message_id(),
+            false,
+            $other
+        );
     }
 
-    public function forwardMessage(string $message_id, string $from_chat_id, array $options = [])
-    {
-        return $this->bot->forwardMessage($this->chat_id(), $message_id, $from_chat_id, $options);
+    public function forwardMessage(
+        string|int $message_id,
+        string $from_chat_id,
+        array $other = []
+    ) {
+        return $this->bot->forwardMessage(
+            $this->chat_id(),
+            $from_chat_id,
+            $message_id,
+            false,
+            $other
+        );
     }
 
-    public function editChatKeypad(Keypad $type = Keypad::New , array $options = [])
-    {
-        return $this->bot->editChatKeypad($this->chat_id(), $type, $options);
+    public function editChatKeypad(
+        KeypadType $type = KeypadType::New ,
+        array $other = []
+    ) {
+        return $this->bot->editChatKeypad(
+            $this->chat_id(),
+            $other,
+            $type
+        );
     }
 
-    public function removeChatKeyPad()
-    {
-        return $this->bot->editChatKeypad($this->chat_id(), Keypad::Remove);
+    public function removeChatKeypad(
+        KeypadType $type = KeypadType::Remove,
+        array $other = []
+    ) {
+        return $this->bot->editChatKeypad(
+            $this->chat_id(),
+            $other,
+            $type
+        );
     }
 
-    public function filter(Filter|array|callable $filter, string $mode = "or"): bool
+    public function DownloadFile(
+        ?string $file_name = null,
+        ?callable $progress = null
+    ) {
+        return $this->bot->download(
+            $this->File(Field::FILE_ID),
+            is_null($file_name) ? $this->File(Field::FILE_NAME) : $file_name,
+            $progress
+        );
+    }
+
+    // ----------- FILTERS -----------
+
+    public function is_command(...$commands): bool
     {
-        if (is_callable($filter)) {
-            return $filter($this);
+        $text = $this->text();
+        if (!$text) {
+            return false;
         }
-        if (is_array($filter)) {
-            if ($mode === "&&")
-                $mode = "and";
-            if ($mode === "||")
-                $mode = "or";
 
-            if ($mode === "or") {
-                foreach ($filter as $f) {
-                    if ($this->filter($f)) {
-                        return true;
-                    }
-                }
-                return false;
-            }
+        if (empty($commands)) {
+            return str_starts_with($text, "/");
+        }
 
-            if ($mode === "and") {
-                foreach ($filter as $f) {
-                    if (!$this->filter($f)) {
-                        return false;
-                    }
-                }
+        foreach ($commands as $cmd) {
+            if ($text === "/" . ltrim($cmd, "/")) {
                 return true;
             }
-
-            if ($mode === "xor") {
-                $results = array_map(fn($f) => $this->filter($f), $filter);
-                return count(array_filter($results)) === 1;
-            }
-
-            throw new \InvalidArgumentException("Invalid filter mode: [and,or,xor,||,&&]");
         }
 
-        $type = $filter->value;
+        return false;
+    }
 
-        return match ($type) {
-            "has_reply_to" => !is_null($this->reply_to_message_id()),
-            "is_command" => str_starts_with($this->text() ?? "", "/"),
-            "is_buttonId" => !is_null($this->button_id()),
-            "is_edited" => $this->is_edit(),
-            "is_file" => !$this->getFile()->is_empty(),
-            "is_location" => !$this->location()->is_empty(),
-            "is_contact" => !$this->contact()->is_empty(),
-            "is_forward" => !$this->forwarded()->is_empty(),
-            "is_inline", => !is_null($this->inline_message()),
-            "is_user" => !is_null($this->sender_type()) && substr($this->chat_id(), 0, 1) == "b",
-            "is_group" => !is_null($this->chat_id()) && substr($this->chat_id(), 0, 1) == "g",
-            "is_channel" => !is_null($this->chat_id()) && substr($this->chat_id(), 0, 1) == "c",
-            default => false,
-        };
+    public function is_button_id(...$buttons)
+    {
+        $btn = $this->button_id();
+        return $btn ? in_array($btn, $buttons, true) : false;
+    }
+
+    public function has_reply_to()
+    {
+        return $this->reply_to_message_id();
+    }
+
+    public function is_user()
+    {
+        $chat_id = $this->chat_id();
+        return $chat_id && str_starts_with($chat_id, "b");
+    }
+    public function is_group()
+    {
+        $chat_id = $this->chat_id();
+        return $chat_id && str_starts_with($chat_id, "g");
+    }
+
+    public function is_channel()
+    {
+        $chat_id = $this->chat_id();
+        return $chat_id && str_starts_with($chat_id, "c");
     }
 }

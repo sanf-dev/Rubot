@@ -1,8 +1,8 @@
 <?php
 
-namespace RuBot\Button;
+namespace Rubot\Button;
 
-use RuBot\Enums\LinkType;
+use Rubot\Enums\LinkType;
 
 
 class Link

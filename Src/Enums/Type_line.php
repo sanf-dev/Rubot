@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace RuBot\Enums;
+namespace Rubot\Enums;
 enum Type_line: string
 {
     case SingleLine = "SingleLine";

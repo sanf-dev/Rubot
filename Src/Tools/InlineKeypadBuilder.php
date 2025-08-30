@@ -1,8 +1,8 @@
 <?php
 
-namespace RuBot\Tools;
+namespace Rubot\Tools;
 
-use RuBot\Enums\ButtonType;
+use Rubot\Enums\ButtonType;
 
 class InlineKeypadBuilder
 {

@@ -1,6 +1,6 @@
 <?php
 
-namespace RuBot\Button;
+namespace Rubot\Button;
 
 
 class StringPicker

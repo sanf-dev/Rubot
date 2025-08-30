@@ -1,8 +1,8 @@
 <?php
 
-namespace RuBot\Button;
+namespace Rubot\Button;
 
-use RuBot\Enums\LocationType;
+use Rubot\Enums\LocationType;
 
 class Location
 {

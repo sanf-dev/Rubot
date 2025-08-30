@@ -1,6 +1,6 @@
 <?php
 
-namespace RuBot\Tools;
+namespace Rubot\Utils;
 
 class CliProgressBar
 {

@@ -1,97 +1,106 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Rubot</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rubot</title>
 
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown-light.min.css" integrity="sha512-8r8oeoEBjAYg6ZT4E0Y7P6k7X8+zPIV+0ldFZ9M+5q6iT1xZlFSkmC+qX8VZuq6X0lsQ5zPp1iN1/xkGbI6ZXg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css">
+  <link rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown-light.min.css"
+    integrity="sha512-8r8oeoEBjAYg6ZT4E0Y7P6k7X8+zPIV+0ldFZ9M+5q6iT1xZlFSkmC+qX8VZuq6X0lsQ5zPp1iN1/xkGbI6ZXg=="
+    crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css">
 
-<style>
-body {
-  font-family: "Segoe UI", Arial, sans-serif;
-  margin: 0;
-  background: #f6f8fa;
-}
+  <style>
+    body {
+      font-family: "Segoe UI", Arial, sans-serif;
+      margin: 0;
+      background: #f6f8fa;
+    }
 
-header {
-  background: #24292f;
-  color: white;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 20px;
-}
+    header {
+      background: #24292f;
+      color: white;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 20px;
+    }
 
-header h1 {
-  margin: 0;
-}
+    header h1 {
+      margin: 0;
+    }
 
-.github-btn {
-  background-color: #28a745;
-  color: white;
-  padding: 8px 15px;
-  text-decoration: none;
-  border-radius: 6px;
-  font-weight: bold;
-}
+    .github-btn {
+      background-color: #28a745;
+      color: white;
+      padding: 8px 15px;
+      text-decoration: none;
+      border-radius: 6px;
+      font-weight: bold;
+    }
 
-main {
-  max-width: 900px;
-  margin: 20px auto;
-  padding: 0 15px;
-}
+    main {
+      max-width: 900px;
+      margin: 20px auto;
+      padding: 0 15px;
+    }
 
-.markdown-body {
-  background: white;
-  padding: 30px;
-  border-radius: 6px;
-  box-shadow: 0 0 5px rgba(0,0,0,0.1);
-}
-.markdown-body table {
-  border-collapse: collapse;
-  width: 100%;
-  margin-bottom: 1em;
-}
-.markdown-body table th,
-.markdown-body table td {
-  border: 1px solid #d0d7de;
-  padding: 6px 13px;
-}
-.markdown-body table th {
-  background-color: #f6f8fa;
-}
-</style>
+    .markdown-body {
+      background: white;
+      padding: 30px;
+      border-radius: 6px;
+      box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+    }
+
+    .markdown-body table {
+      border-collapse: collapse;
+      width: 100%;
+      margin-bottom: 1em;
+    }
+
+    .markdown-body table th,
+    .markdown-body table td {
+      border: 1px solid #d0d7de;
+      padding: 6px 13px;
+    }
+
+    .markdown-body table th {
+      background-color: #f6f8fa;
+    }
+  </style>
 </head>
+
 <body>
 
-<header>
-  <h1>Rubot</h1>
-  <a class="github-btn" href="https://github.com/sanf-dev/Rubot" target="_blank">Go to GitHub</a>
-</header>
+  <header>
+    <h1>Rubot</h1>
+    <a class="github-btn" href="https://github.com/sanf-dev/Rubot" target="_blank">Go to GitHub</a>
+  </header>
 
-<main>
-  <article class="markdown-body" id="readme">Loading README...</article>
-</main>
+  <main>
+    <article class="markdown-body" id="readme">Loading README...</article>
+  </main>
 
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
-<script>
-async function loadReadme() {
-  const url = 'https://raw.githubusercontent.com/sanf-dev/Rubot/main/README.md';
-  const res = await fetch(url);
-  const text = await res.text();
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+  <script>
+    async function loadReadme() {
+      const url = 'https://raw.githubusercontent.com/sanf-dev/Rubot/main/README.md';
+      const res = await fetch(url);
+      const text = await res.text();
 
-  document.getElementById('readme').innerHTML = marked.parse(text);
+      document.getElementById('readme').innerHTML = marked.parse(text);
 
-  document.querySelectorAll('pre code').forEach((block) => {
-    hljs.highlightBlock(block);
-  });
-}
+      document.querySelectorAll('pre code').forEach((block) => {
+        hljs.highlightBlock(block);
+      });
+    }
 
-loadReadme();
-</script>
+    loadReadme();
+  </script>
 
 </body>
+
 </html>

@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace RuBot\Enums;
+namespace Rubot\Enums;
 
-enum Field : string
+enum Field: string
 {
     /**
      * get file paaram
@@ -34,4 +34,40 @@ enum Field : string
     case CONTACT_FNAME = "first_name";
     case CONTACT_LNAME = "last_name";
 
+    public static function fileFields(): array
+    {
+        return [
+            self::FILE_ID,
+            self::FILE_NAME,
+            self::SIZE,
+        ];
+    }
+
+    public static function forwardFields(): array
+    {
+        return [
+            self::FORWARD_TYPE,
+            self::FORWARD_MESSAGE_ID,
+            self::FORWARD_FROM_SENDER_ID,
+            self::FORWARD_FROM_CHAT_ID,
+        ];
+    }
+
+    public static function locationFields(): array
+    {
+        return [
+            self::LOCATION_LONGITUDE,
+            self::LOCATION_LATITUDE,
+        ];
+    }
+
+    public static function contactFields(): array
+    {
+        return [
+            self::CONTACT_PHONE,
+            self::CONTACT_FNAME,
+            self::CONTACT_LNAME,
+        ];
+    }
 }
+

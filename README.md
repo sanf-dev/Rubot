@@ -1,223 +1,170 @@
-<h2 align="center">Rubot | Rubika Bot API Library</h2>
+<p align="center">
+  <a href="https://github.com/sanf-dev/Rubot">
+    <img src="https://uploadkon.ir/uploads/449030_25logo-rubot.png" alt="logo - Rubot">
+  </a>
+  <br><br>
+  <h2>Rubot</h2>
+  <br>
+  <h3>PHP framework for building Rubika bots efficiently and intelligently.</h3>
+[![PHP Framework](https://img.shields.io/badge/PHP%20framework-8A2BE2)](https://github.com/sanf-dev)
+[![PHP Version](https://img.shields.io/badge/PHP-%3E=8.1-8892BF)](https://www.php.net/)
+[![Packagist](https://img.shields.io/badge/Packagist-sanf/rubot-212121)](https://packagist.org/packages/sanf/rubot)
+[![github](https://img.shields.io/badge/github-sanf%2Ddev-blue)](https://github.com/sanf-dev/Rubot)
+</p>
 
 # Rubot
 
-A modern PHP library for building bots on Rubika platform.
-Supports sending messages, keyboards, files and more.
+**Rubot** is a **PHP framework** for building **Rubika bots**.
+It uses the official **Rubika APIs** to create bots efficiently and reliably.
+Rubot is optimized for performance and ease of use, offering all supported methods for messaging, media, and user interactions.
 
-## Rubika Bot Api
+Whether you need a simple chatbot or a more advanced assistant, Rubot makes development faster, smarter, and more maintainable.
 
-A simple library for creating Rubika bots,
-officially and legally connected to the official Rubika Bot APIs:
-[botApi](https://rubika.ir/botapi/)
-
-To obtain a token, use the official Rubika bot:
-[@BotFather](https://rubika.ir/botfather)
-
-> V 1.0.0  
+> V 2.1.0
 > PHP 8.1+
 
-# Installation
+### What's New?
+
+> Update v2.1.0
+
+> **Overall changes**
+
+- Optimization of core classes
+- Using Guzzle for sending requests, downloading, and uploading
+- Updated filters in the Message class
+- Optimized upload and download
+- Added support for receiving updates via long polling
+- Added button links for joining channels and opening URLs
+- Simplified retrieval and usage of file IDs
+- Added new filters
+- Added progress tracking for downloads and uploads
+- Added the Rubino class
+
+> **Minor changes**
+
+- Added ENV file support
+- Added retry count for failed requests
+- Added timeout setting
+- Added debugger
+- Added automatic token retrieval from ENV
+
+# Initial Setup
+
+1. Get your token from the [@BotFather](https://rubika.ir/botfather) bot.
+
+2. Install the Library
+   Download the library using one of the following methods:
+
+Using Composer
 
 ```bash
 composer require sanf/rubot
+# Or Install the Beta Version
+composer require sanf/rubot:dev-main
 ```
 
-## 🛠 Basic Structure
+Clone from GitHub
+
+```bash
+git clone https://github.com/sanf-dev/rubot
+composer dump-autoload
+```
+
+3. Create a File and Run a Simple Bot
 
 ```php
 require "vendor/autoload.php";
 
-use RuBot\Bot;
-use RuBot\Tools\Message;
+use Rubot\Bot;
+use Rubot\Tools\Message;
 
-$bot = new Bot("BOT_TOKEN");
+$bot = new Bot("YOUR_BOT_TOKEN");
 
 $run = function (Message $update) use ($bot) {
     $update->reply("Hello, user");
 };
 
-$bot->onMessage($run);
+$bot->onMessage($run); // run webhook
 ```
 
----
-
-## Sending Messages
+4. Set a Webhook for Your Bot
 
 ```php
-$bot->sendMessage("TEXT", "CHAT_ID", "REPLY_MESSAGE_ID", ["OPTIONS"]);
+$bot->setWebHook("WEBHOOK_URL");
 ```
 
-- `TEXT` – `string` → The text message you want to send.
-- `CHAT_ID` – `string` → The target chat ID.
-- `REPLY_MESSAGE_ID` – `string` → The message ID to reply to (optional).
-- `OPTIONS` – `array` → Additional options:
+5. Congratulations 🎉
+   You have successfully set up your bot!
 
-  - `disable_notification`: `bool`
+# (Bot) Methods
+
+## Sending Message
+
+Simple example of sending a message with the Bot class
+
+```php
+$bot->sendMessage(
+    "CHAT_ID",
+    "TEXT",
+    "REPLY_MESSAGE_ID",
+    "DISABLE_NOTIFICATION",
+    ["OTHER_METHOD"]
+);
+```
+
+- `CHAT_ID` – `string` → The target chat ID.
+- `TEXT` – `string` → The text message you want to send.
+- `REPLY_MESSAGE_ID` – `string` → The message ID to reply to (optional).
+- `DISABLE_NOTIFICATION` – `bool` → Additional options:
+- `OTHER_METHOD` – `array` → Additional options:
   - `inline_keypad`: `array`
   - `chat_keypad`: `array`
   - `chat_keypad_type`: `string`
 
-_Example options:_
+## Other methods
 
-```json
-{
-  "disable_notification": false,
-  "inline_keypad": {},
-  "chat_keypad": {},
-  "chat_keypad_type": "New"
-}
-```
-
-### Inline Keyboard Message
-
-```php
-use RuBot\Tools\InlineKeypadBuilder;
-use RuBot\Enums\ButtonType;
-
-$keypad = (new InlineKeypadBuilder())
-    ->row(
-        InlineKeypadBuilder::button("BTN_ID", "TEXT", ButtonType::Simple)
-        // ...
-    )->build();
-
-$bot->sendMessage("YOUR_TEXT", "CHAT_ID", "REPLY_MESSAGE_ID", $keypad);
-```
-
-### Chat Keyboard
-
-```php
-use RuBot\Tools\ChatKeypadBuilder;
-use RuBot\Enums\ButtonType;
-
-$keypad = (new ChatKeypadBuilder)
-    ->row(
-        ChatKeypadBuilder::button("BTN_ID", "TEXT", ButtonType::Simple)
-        // ...
-    )->build();
-
-$bot->sendMessage("YOUR_TEXT", "CHAT_ID", "REPLY_MESSAGE_ID", $keypad);
-```
-
-## 🔍 Message Filtering
-
-```php
-use RuBot\Enums\Filter;
-use RuBot\Tools\FilterHelper as When;
-
-if ($update->filter(When::ButtonID("BTN_ID"))) {
-    $update->reply("Button clicked.");
-}
-
-if ($update->filter(When::Command("start"))) {
-    $update->reply("Welcome.");
-}
-```
-
----
-
-## Security Key Setup
-
-```php
-$bot->SecretKey = "my_bot_110";
-
-if ($bot->checkSecretKey()) {
-    $ip = $_SERVER['REMOTE_ADDR'];
-    $bot->sendMessage("Attempting unauthorized access from $ip", "ADMIN_CHAT_ID");
-    $secret = $bot->setSecretKey(true);
-}
-```
-
-**Webhook URL**:
-`https://example.com?key=my_bot_110`
-
----
-
-# Bot Methods
+Get familiar with the different methods
 
 ### Sending Messages
 
-| Method           | Description                                                 | Output |
-| ---------------- | ----------------------------------------------------------- | ------ |
-| `sendMessage`    | Send a text message with optional keyboard or extra options | Array  |
-| `sendFile`       | Send a file to a chat                                       | Array  |
-| `sendPoll`       | Send a poll to the chat                                     | Array  |
-| `sendLocation`   | Send a temporary location                                   | Array  |
-| `sendContact`    | Send a contact (phone number & name)                        | Array  |
-| `forwardMessage` | Forward a message from one chat to another                  | Array  |
+- `sendFile` : `Send a file to a chat`
+- `sendPoll` : `Send a poll to the chat`
+- `sendLocation` : `Send a temporary location `
+- `sendContact` : `Send a contact (phone number & name)`
+- `forwardMessage` : `Forward a message from one chat to another `
 
 ### Editing & Deleting
 
-| Method           | Description                                   | Output |
-| ---------------- | --------------------------------------------- | ------ |
-| `editMessage`    | Edit the content of a previously sent message | Bool   |
-| `deleteMessage`  | Delete a message from a chat                  | Bool   |
-| `editChatKeypad` | Edit an existing chat keyboard                | Bool   |
+- `editMessage` : `Edit the content of a previously sent message`
+- `deleteMessage` : `Delete a message from a chat`
+- `editChatKeypad` : `Edit an existing chat keyboard`
 
 ### File Handling
 
-| Method            | Description                            | Output |
-| ----------------- | -------------------------------------- | ------ |
-| `getFile`         | Get file information using its file ID | Array  |
-| `uploadMediaFile` | Upload a media file to Rubika servers  | Array  |
+- `getFile` : `Get file information using its file ID`
+- `sendFile` : `Upload a media file to Rubika servers`
+- `download` : `Download a file from its file ID to a specified path`
 
 ### Chat & Bot Info
 
-| Method        | Description                                    | Output |
-| ------------- | ---------------------------------------------- | ------ |
-| `getMe`       | Get bot account details                        | Array  |
-| `getChat`     | Get chat information (user, group, or channel) | Array  |
-| `getUpdates`  | Receive incoming updates (polling method)      | Array  |
-| `setCommands` | Set bot commands                               | Array  |
+- `getMe` : `Get bot account details`
+- `getChat` : `Get chat information (user, group, or channel)`
+- `getUpdates` : `Receive incoming updates (polling method)`
+- `setCommands` : `Set bot commands  `
 
 ### Webhook & Security
 
-| Method           | Description                                                        | Output |
-| ---------------- | ------------------------------------------------------------------ | ------ |
-| `setSecretKey`   | Set a security key to protect webhook access                       | Bool   |
-| `checkSecretKey` | Check if the incoming webhook request contains the correct key     | Bool   |
-| `WebHook`        | Manually configure a webhook                                       | Array  |
-| `setWebHook`     | Automatically set webhook to a given URL                           | Array  |
-| `onMessage`      | Handle incoming messages from the webhook with a callback function | Void   |
+- `setSecretKey` : `Set a security key to protect webhook access `
+- `checkSecretKey` : `Check if the incoming webhook request contains the correct key`
+- `setWebHook` : `Automatically set webhook to a given URL`
+- `onMessage` : `Handle incoming messages from the webhook with a callback function`
+- `onUpdate` : `Receive updates using long polling`
 
----
+## (Message) Methods
 
-# Message Methods
-
-### Reading Message Data
-
-| Method           | Description                                | Output |
-| ---------------- | ------------------------------------------ | ------ |
-| `text`           | Get the text content of the message        | string |
-| `chat_id`        | Get the chat ID where the message was sent | string |
-| `message_id`     | Get the unique ID of the message           | string |
-| `getTime`        | Get the time when the message was sent     | string |
-| `is_edit`        | Check if the message was edited            | bool   |
-| `sender_type`    | Get the sender type (user, group, channel) | string |
-| `sender_id`      | Get the sender's unique ID                 | string |
-| `button_id`      | Get the ID of the clicked button (if any)  | string |
-| `getFile`        | Get information about an attached file     | array  |
-| `location`       | Get shared location details                | array  |
-| `contact`        | Get shared contact details                 | array  |
-| `forwarded`      | Get details of a forwarded message         | array  |
-| `start_id`       | Get the bot start payload (start ID)       | string |
-| `inline_message` | Get inline message content                 | array  |
-| `rawData`        | Get all raw data received from the update  | array  |
-
-### Reply & Action Methods
-
-| Method             | Description                                                                | Output |
-| ------------------ | -------------------------------------------------------------------------- | ------ |
-| `reply`            | Send a text message as a reply to the current message                      | array  |
-| `sendPoll`         | Send a poll as a reply                                                     | array  |
-| `sendLocation`     | Send a temporary location as a reply                                       | array  |
-| `sendContact`      | Send a contact as a reply                                                  | array  |
-| `forwardMessage`   | Forward the current message to another chat                                | array  |
-| `editChatKeypad`   | Edit the current chat keyboard                                             | Array  |
-| `removeChatKeyPad` | Remove the current chat keyboard                                           | Array  |
-| `filter`           | Filter incoming messages based on conditions (e.g., commands, button file) | bool   |
-
----
+- `text` : `get Message`
+- `chat_id` : `get Chat Id`
+- `message_id` : `get Message Id`
 
 ## License
 
