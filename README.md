@@ -1,15 +1,17 @@
 <p align="center">
   <a href="https://github.com/sanf-dev/Rubot">
-    <img src="https://uploadkon.ir/uploads/449030_25logo-rubot.png" alt="logo - Rubot">
+    <img src="https://uploadkon.ir/uploads/80b230_25rubot-logo.png" width="128" alt="logo - Rubot">
   </a>
   <br><br>
   <h2>Rubot</h2>
   <br>
   <h3>PHP framework for building Rubika bots efficiently and intelligently.</h3>
+
 [![PHP Framework](https://img.shields.io/badge/PHP%20framework-8A2BE2)](https://github.com/sanf-dev)
 [![PHP Version](https://img.shields.io/badge/PHP-%3E=8.1-8892BF)](https://www.php.net/)
 [![Packagist](https://img.shields.io/badge/Packagist-sanf/rubot-212121)](https://packagist.org/packages/sanf/rubot)
 [![github](https://img.shields.io/badge/github-sanf%2Ddev-blue)](https://github.com/sanf-dev/Rubot)
+
 </p>
 
 # Rubot
