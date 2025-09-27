@@ -471,10 +471,10 @@ class Bot
             );
             return $result;
         }
-        $result = [];
+        $response = [];
         foreach ($endPointType as $updateType) {
-            $response = $this->setWebHook($url, $updateType);
-            $response[$updateType] = $setWB["status"] ?? $response;
+            $result = $this->setWebHook($url, $updateType);
+            $response[$updateType] = $result["data"]["status"] ?? $result;
         }
         return $response;
     }
