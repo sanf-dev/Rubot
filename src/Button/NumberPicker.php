@@ -2,8 +2,7 @@
 
 namespace Rubot\Button;
 
-
-class NumberPicker
+class NumberPicker implements \JsonSerializable
 {
     private array $rows = [];
 
@@ -13,7 +12,7 @@ class NumberPicker
         return $this;
     }
 
-    public function default_value(string $value)
+    public function default_value(int $value): self
     {
         $this->rows["default_value"] = $value;
         return $this;
@@ -36,5 +35,10 @@ class NumberPicker
         return [
             "button_number_picker" => $this->rows
         ];
+    }
+    
+    public function jsonSerialize(): array
+    {
+        return $this->build();
     }
 }

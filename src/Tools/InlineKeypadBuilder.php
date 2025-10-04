@@ -4,7 +4,7 @@ namespace Rubot\Tools;
 
 use Rubot\Enums\ButtonType;
 
-class InlineKeypadBuilder
+class InlineKeypadBuilder implements \JsonSerializable
 {
     private array $rows = [];
 
@@ -38,5 +38,10 @@ class InlineKeypadBuilder
 
             ]
         ];
+    }
+    
+    public function jsonSerialize(): mixed
+    {
+        return $this->build();
     }
 }

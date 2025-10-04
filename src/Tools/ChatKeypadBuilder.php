@@ -5,7 +5,7 @@ namespace Rubot\Tools;
 use Rubot\Enums\ButtonType;
 use Rubot\Enums\KeypadType;
 
-class ChatKeypadBuilder
+class ChatKeypadBuilder implements \JsonSerializable
 {
     private array $rows = [];
     public bool $resize_keyboard = true;
@@ -48,5 +48,10 @@ class ChatKeypadBuilder
                 "on_time_keyboard" => $this->on_time_keyboard
             ]
         ];
+    }
+
+    public function jsonSerialize(): mixed
+    {
+        return $this->build();
     }
 }

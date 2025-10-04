@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 namespace Rubot\Tools;
 
 use Rubot\Utils\Limiter;
@@ -16,25 +14,11 @@ class Message
 {
     private array $data;
     private readonly object $bot;
-    public bool|null $active_reply = true;
+    public bool $active_reply = true;
 
     private $chat_id = null;
     private $text = null;
     private $message_id = null;
-
-    private const EXT_MAP = [
-        "code" => ["php", "js", "ts", "py", "java", "c", "cpp", "cs", "go", "rb", "swift", "kt", "rs", "html", "css", "json", "xml", "yml", "sh", "bat"],
-        "file" => ["obb", "pak", "zip", "rar", "7z", "tar", "gz", "xz", "iso", "dmg", "apk", "exe", "msi", "deb", "rpm"],
-        "document" => ["pdf", "doc", "docx", "odt", "rtf", "txt", "md", "htm", "ppt", "pptx", "xls", "xlsx", "csv"],
-        "image" => ["jpg", "jpeg", "png", "webp", "svg", "bmp", "tiff", "tif", "ico", "heic", "heif"],
-        "video" => ["mp4", "mov", "avi", "mkv", "flv", "wmv", "webm", "mpeg", "mpg", "3gp", "m4v"],
-        "music" => ["mp3", "wav", "flac", "aac", "m4a", "wma", "alac", "aiff", "dsd"],
-        "database" => ["sql", "sqlite", "db", "accdb", "mdb", "bak"],
-        "voice" => ["ogg", "opus", "amr", "3ga", "m4r"],
-        "font" => ["ttf", "otf", "woff", "woff2", "eot"],
-        "gif" => ["gif", "apng"],
-        "unk" => ["unk"]
-    ];
 
 
     public function __construct(array $update, object $bot)
@@ -163,6 +147,11 @@ class Message
         return $this->data["aux_data"]["start_id"] ?? false;
     }
 
+    public function poll()
+    {
+        return $this->data["poll"] ?? false;
+    }
+
     public function rawData()
     {
         return $this->data;
@@ -177,7 +166,7 @@ class Message
         return $this->bot->sendMessage(
             $this->chat_id(),
             $text,
-            is_null($this->active_reply) ? null : $this->message_id(),
+            !$this->active_reply ? null : $this->message_id(),
             false,
             $other
         );
@@ -203,7 +192,7 @@ class Message
             $text,
             $file,
             $file_name,
-            is_null($this->active_reply) ? null : $this->message_id(),
+            !$this->active_reply ? null : $this->message_id(),
             false,
             $progress,
             $other
@@ -234,7 +223,7 @@ class Message
             $this->chat_id(),
             $latitude,
             $longitude,
-            is_null($this->active_reply) ? null : $this->message_id(),
+            !$this->active_reply ? null : $this->message_id(),
             false,
             $other
         );
@@ -251,7 +240,7 @@ class Message
             $phone,
             $first_name,
             $last_name,
-            is_null($this->active_reply) ? null : $this->message_id(),
+            !$this->active_reply ? null : $this->message_id(),
             false,
             $other
         );
@@ -332,10 +321,6 @@ class Message
         return $btn ? in_array($btn, $buttons, true) : false;
     }
 
-    public function has_reply_to()
-    {
-        return $this->reply_to_message_id();
-    }
 
     public function is_file()
     {
@@ -364,6 +349,172 @@ class Message
         return $this->sticker() ? true : false;
     }
 
+    public function is_long(int $minLength = 50): bool
+    {
+        return mb_strlen($this->text() ?? '') >= $minLength;
+    }
+
+    public function is_short(int $maxLength = 50): bool
+    {
+        return mb_strlen($this->text() ?? '') <= $maxLength;
+    }
+
+    public function is_poll()
+    {
+        return $this->poll() ? true : false;
+    }
+
+    public function is_similar_to(string $text, int $percent = 80): bool
+    {
+        $input = $this->text();
+        similar_text(mb_strtolower($input), mb_strtolower($text), $similarity);
+        return $similarity >= $percent;
+    }
+
+
+    public function has_reply_to()
+    {
+        return $this->reply_to_message_id();
+    }
+
+    public function has_link(): array|false
+    {
+        preg_match_all('/\b((https?:\/\/)?([\w-]+\.)+[a-z]{2,6}(\/\S*)?)/i', $this->text(), $matches);
+        return !empty($matches[0]) ? $matches[0] : false;
+    }
+
+    public function has_mention(): array|false
+    {
+        preg_match_all('/@[\p{L}\w]+/u', $this->text(), $matches);
+        return !empty($matches[0]) ? $matches[0] : false;
+    }
+
+    public function has_hashtag(): array|false
+    {
+        preg_match_all('/#[\p{L}\w]+/u', $this->text(), $matches);
+        return !empty($matches[0]) ? $matches[0] : false;
+    }
+
+    public function has_emoji(): array|false
+    {
+        preg_match_all(
+            '/[\x{1F600}-\x{1F64F}' .
+            '\x{1F300}-\x{1F5FF}' .
+            '\x{1F680}-\x{1F6FF}' .
+            '\x{1F1E0}-\x{1F1FF}]/u',
+            $this->text(),
+            $matches
+        );
+        return !empty($matches[0]) ? $matches[0] : false;
+    }
+
+    public function has_pattern(string $regex): array|false
+    {
+        preg_match_all($regex, $this->text(), $matches);
+        return empty($matches[0]) ? false : $matches[0];
+    }
+
+
+    public function contains_number(): array|false
+    {
+        preg_match_all('/\d+/', $this->text(), $matches);
+        return !empty($matches[0]) ? $matches[0] : false;
+    }
+
+    public function contains_email(): array|false
+    {
+        preg_match_all('/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i', $this->text(), $matches);
+        return !empty($matches[0]) ? $matches[0] : false;
+    }
+
+    public function contains_phone(): array|false
+    {
+        $text = preg_replace('/[()\s\-\.]/u', '', $this->text());
+
+        $pattern = '/(?<!\d)(?:\+98|0098|98|0)?9\d{9}(?!\d)/';
+        preg_match_all($pattern, $text, $matches);
+
+        if (empty($matches[0])) {
+            return false;
+        }
+
+        $results = [];
+        foreach ($matches[0] as $num) {
+            if (str_starts_with($num, '0')) {
+                $num = '+98' . substr($num, 1);
+            } elseif (str_starts_with($num, '9')) {
+                $num = '+98' . $num;
+            } elseif (str_starts_with($num, '98') && !str_starts_with($num, '+')) {
+                $num = '+' . $num;
+            } elseif (str_starts_with($num, '0098')) {
+                $num = '+' . substr($num, 2);
+            }
+            $results[] = $num;
+        }
+
+        return array_values(array_unique($results));
+    }
+
+    public function contains_words(array $words): array|false
+    {
+        $found = [];
+        $text = $this->text();
+        foreach ($words as $word) {
+            if (stripos($text, $word) !== false) {
+                $found[] = $word;
+            }
+        }
+        return !empty($found) ? $found : false;
+    }
+    public function contains_words_all(array $words): array|false
+    {
+        $text = $this->text();
+        $found = [];
+        foreach ($words as $word) {
+            if (stripos($text, $word) !== false) {
+                $found[] = $word;
+            }
+        }
+        return count($found) === count($words) ? $found : false;
+    }
+
+    public function contains_date(): array|false
+    {
+        preg_match_all('/\b\d{1,4}[\/\-]\d{1,2}[\/\-]\d{1,4}\b/', $this->text(), $matches);
+        return !empty($matches[0]) ? $matches[0] : false;
+    }
+
+
+    public function contains_time(): array|false
+    {
+        preg_match_all('/\b\d{1,2}:\d{2}(:\d{2})?\b/', $this->text(), $matches);
+        return !empty($matches[0]) ? $matches[0] : false;
+    }
+
+    public function contains_code(): array|false
+    {
+        preg_match_all('/(```.*?```|`.*?`)/s', $this->text(), $matches);
+        return !empty($matches[0]) ? $matches[0] : false;
+    }
+
+    public function contains_repeated_chars(int $count = 10): array|false
+    {
+        preg_match_all('/(.)\1{' . ($count - 1) . ',}/u', $this->text(), $matches);
+        return !empty($matches[0]) ? $matches[0] : false;
+    }
+
+    public function contains_language(string $lang): bool
+    {
+        $text = $this->text();
+        return match (strtolower($lang)) {
+            'fa', 'persian', 'farsi' => preg_match('/\p{Arabic}/u', $text) === 1,
+            'en', 'english' => preg_match('/[a-zA-Z]/', $text) === 1,
+            default => false,
+        };
+    }
+
+
+
     public function Filelocker(bool $autoDel = true, array|null $customType = null, LockType ...$types): bool
     {
         $file_name = $this->File(Field::FILE_NAME);
@@ -376,18 +527,22 @@ class Message
             $ext = "unk";
         }
 
+        if ($customType && in_array($ext, $customType, true)) {
+            return $autoDel ? (bool) $this->deleteMessage() : true;
+        }
+
         static $extMap = [
-        LockType::Code => ["php", "js", "ts", "py", "java", "c", "cpp", "cs", "go", "rb", "swift", "kt", "rs", "html", "css", "json", "xml", "yml", "sh", "bat"],
-        LockType::File => ["obb", "pak", "zip", "rar", "7z", "tar", "gz", "xz", "iso", "dmg", "apk", "exe", "msi", "deb", "rpm"],
-        LockType::Document => ["pdf", "doc", "docx", "odt", "rtf", "txt", "md", "htm", "ppt", "pptx", "xls", "xlsx", "csv"],
-        LockType::Image => ["jpg", "jpeg", "png", "webp", "svg", "bmp", "tiff", "tif", "ico", "heic", "heif"],
-        LockType::Video => ["mp4", "mov", "avi", "mkv", "flv", "wmv", "webm", "mpeg", "mpg", "3gp", "m4v"],
-        LockType::Music => ["mp3", "wav", "flac", "aac", "m4a", "wma", "alac", "aiff", "dsd"],
-        LockType::Database => ["sql", "sqlite", "db", "accdb", "mdb", "bak"],
-        LockType::Voice => ["ogg", "opus", "amr", "3ga", "m4r"],
-        LockType::Font => ["ttf", "otf", "woff", "woff2", "eot"],
-        LockType::Gif => ["gif", "apng"],
-        LockType::Unk => ["unk"]
+        LockType::Code->name => ["php", "js", "ts", "py", "java", "c", "cpp", "cs", "go", "rb", "swift", "kt", "rs", "html", "css", "json", "xml", "yml", "sh", "bat"],
+        LockType::File->name => ["obb", "pak", "zip", "rar", "7z", "tar", "gz", "xz", "iso", "dmg", "apk", "exe", "msi", "deb", "rpm"],
+        LockType::Document->name => ["pdf", "doc", "docx", "odt", "rtf", "txt", "md", "htm", "ppt", "pptx", "xls", "xlsx", "csv"],
+        LockType::Image->name => ["jpg", "jpeg", "png", "webp", "svg", "bmp", "tiff", "tif", "ico", "heic", "heif"],
+        LockType::Video->name => ["mp4", "mov", "avi", "mkv", "flv", "wmv", "webm", "mpeg", "mpg", "3gp", "m4v"],
+        LockType::Music->name => ["mp3", "wav", "flac", "aac", "m4a", "wma", "alac", "aiff", "dsd"],
+        LockType::Database->name => ["sql", "sqlite", "db", "accdb", "mdb", "bak"],
+        LockType::Voice->name => ["ogg", "opus", "amr", "3ga", "m4r"],
+        LockType::Font->name => ["ttf", "otf", "woff", "woff2", "eot"],
+        LockType::Gif->name => ["gif", "apng"],
+        LockType::Unk->name => ["unk"]
         ];
 
         static $lookup = null;
@@ -400,22 +555,16 @@ class Message
             }
         }
 
-        if ($customType && in_array($ext, $customType, true)) {
-            return $autoDel ? (bool) $this->deleteMessage() : true;
-        }
-
-        $map = $lookup[$ext] ?? LockType::Unk;
+        $map = $lookup[$ext] ?? LockType::Unk->name;
 
         foreach ($types as $t) {
-            if ($map === $t) {
+            if ($map === $t->name) {
                 return $autoDel ? (bool) $this->deleteMessage() : true;
             }
         }
 
         return false;
     }
-
-
 
     /**
      * User Limiter

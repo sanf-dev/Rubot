@@ -3,7 +3,7 @@
 namespace Rubot\Button;
 
 
-class StringPicker
+class StringPicker implements \JsonSerializable
 {
     private array $rows = [];
 
@@ -30,5 +30,10 @@ class StringPicker
         return [
             "button_string_picker" => $this->rows
         ];
+    }
+
+    public function jsonSerialize(): mixed
+    {
+        return $this->build();
     }
 }

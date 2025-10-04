@@ -4,7 +4,7 @@ namespace Rubot\Button;
 
 use Rubot\Enums\LocationType;
 
-class Location
+class Location implements \JsonSerializable
 {
     private array $rows = [];
 
@@ -51,5 +51,10 @@ class Location
         return [
             "button_location" => $this->rows
         ];
+    }
+
+    public function jsonSerialize(): mixed
+    {
+        return $this->build();
     }
 }

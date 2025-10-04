@@ -4,7 +4,7 @@ namespace Rubot\Button;
 
 use Rubot\Enums\ButtonSelectionSearch;
 
-class Selection
+class Selection implements \JsonSerializable
 {
     private array $rows = [];
 
@@ -56,5 +56,10 @@ class Selection
         return [
             "button_selection" => $this->rows
         ];
+    }
+
+    public function jsonSerialize(): mixed
+    {
+        return $this->build();
     }
 }

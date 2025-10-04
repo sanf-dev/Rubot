@@ -1,7 +1,7 @@
 {
   "name": "sanf/rubot",
   "type": "library",
-  "version": "v2.1.0",
+  "version": "v2.1.0-RC1",
   "description": "Rubot is a PHP framework for building Rubika bots efficiently and reliably, with full support for messaging, media, and user interactions.\nRubot - Rubika Bot API SDK in PHP",
   "keywords": [
     "Rubika",
@@ -33,8 +33,9 @@
   },
   "archive": {
     "exclude": [
-      "Example/",
-      "index.html"
+      "tests/",
+      "index.html",
+      "wiki-en.md"
     ]
   },
   "minimum-stability": "stable",

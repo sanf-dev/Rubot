@@ -4,7 +4,7 @@ namespace Rubot\Button;
 
 use Rubot\Enums\Date;
 
-class Calendar
+class Calendar implements \JsonSerializable
 {
     private array $rows = [];
 
@@ -14,13 +14,13 @@ class Calendar
         return $this;
     }
 
-    public function type(Date $type = Date::DatePersian) :self
+    public function type(Date $type = Date::DatePersian): self
     {
         $this->rows["type"] = $type->value;
         return $this;
     }
 
-    public function default_value(string $value) 
+    public function default_value(string $value)
     {
         $this->rows["default_value"] = $value;
         return $this;
@@ -43,5 +43,10 @@ class Calendar
         return [
             "button_calendar" => $this->rows
         ];
+    }
+
+    public function jsonSerialize(): mixed
+    {
+        return $this->build();
     }
 }

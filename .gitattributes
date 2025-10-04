@@ -1,1 +1,5 @@
+/.git
+/.gitattributes
+/tests/ export-ignore
 index.html export-ignore
+wiki-en.md export-ignore

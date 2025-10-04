@@ -5,7 +5,7 @@ namespace Rubot\Button;
 use Rubot\Enums\LinkType;
 
 
-class Link
+class Link implements \JsonSerializable
 {
     private array $rows = [];
 
@@ -37,5 +37,10 @@ class Link
         return [
             "button_link" => $this->rows
         ];
+    }
+
+    public function jsonSerialize(): mixed
+    {
+        return $this->build();
     }
 }
