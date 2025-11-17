@@ -52,10 +52,10 @@ class Message
     }
 
     // ----------- GET JSON PARAM -----------
-    public function text()
+    public function text($ret = false)
     {
         if (is_null($this->text))
-            return $this->text = $this->data["text"] ?? false;
+            return $this->text = $this->data["text"] ?? $ret;
         else
             return $this->text;
     }
@@ -77,9 +77,9 @@ class Message
             return $this->message_id;
     }
 
-    public function reply_to_message_id()
+    public function reply_to_message_id($ret = null)
     {
-        return $this->data["reply_to_message_id"] ?? null;
+        return $this->data["reply_to_message_id"] ?? $ret;
     }
 
     public function getTime()
@@ -157,6 +157,11 @@ class Message
         return $this->data;
     }
 
+    public function metadata()
+    {
+        return $this->data["metadata"] ?? [];
+    }
+
 
     // ----------- SEND METHODES -----------
     public function reply(
@@ -172,7 +177,7 @@ class Message
         );
     }
 
-    public function deleteMessage(string $message_id = null)
+    public function deleteMessage(?string $message_id = null)
     {
         return $this->bot->deleteMessage(
             $this->chat_id(),
@@ -532,17 +537,17 @@ class Message
         }
 
         static $extMap = [
-        LockType::Code->name => ["php", "js", "ts", "py", "java", "c", "cpp", "cs", "go", "rb", "swift", "kt", "rs", "html", "css", "json", "xml", "yml", "sh", "bat"],
-        LockType::File->name => ["obb", "pak", "zip", "rar", "7z", "tar", "gz", "xz", "iso", "dmg", "apk", "exe", "msi", "deb", "rpm"],
-        LockType::Document->name => ["pdf", "doc", "docx", "odt", "rtf", "txt", "md", "htm", "ppt", "pptx", "xls", "xlsx", "csv"],
-        LockType::Image->name => ["jpg", "jpeg", "png", "webp", "svg", "bmp", "tiff", "tif", "ico", "heic", "heif"],
-        LockType::Video->name => ["mp4", "mov", "avi", "mkv", "flv", "wmv", "webm", "mpeg", "mpg", "3gp", "m4v"],
-        LockType::Music->name => ["mp3", "wav", "flac", "aac", "m4a", "wma", "alac", "aiff", "dsd"],
-        LockType::Database->name => ["sql", "sqlite", "db", "accdb", "mdb", "bak"],
-        LockType::Voice->name => ["ogg", "opus", "amr", "3ga", "m4r"],
-        LockType::Font->name => ["ttf", "otf", "woff", "woff2", "eot"],
-        LockType::Gif->name => ["gif", "apng"],
-        LockType::Unk->name => ["unk"]
+        "Code" => ["php", "js", "ts", "py", "java", "c", "cpp", "cs", "go", "rb", "swift", "kt", "rs", "html", "css", "json", "xml", "yml", "sh", "bat"],
+        "File" => ["obb", "pak", "zip", "rar", "7z", "tar", "gz", "xz", "iso", "dmg", "apk", "exe", "msi", "deb", "rpm"],
+        "LockDocument" => ["pdf", "doc", "docx", "odt", "rtf", "txt", "md", "htm", "ppt", "pptx", "xls", "xlsx", "csv"],
+        "Image" => ["jpg", "jpeg", "png", "webp", "svg", "bmp", "tiff", "tif", "ico", "heic", "heif"],
+        "Video" => ["mp4", "mov", "avi", "mkv", "flv", "wmv", "webm", "mpeg", "mpg", "3gp", "m4v"],
+        "Music" => ["mp3", "wav", "flac", "aac", "m4a", "wma", "alac", "aiff", "dsd"],
+        "LockDatabase" => ["sql", "sqlite", "db", "accdb", "mdb", "bak"],
+        "Voice" => ["ogg", "opus", "amr", "3ga", "m4r"],
+        "Font" => ["ttf", "otf", "woff", "woff2", "eot"],
+        "Gif" => ["gif", "apng"],
+        "Unk" => ["unk"]
         ];
 
         static $lookup = null;

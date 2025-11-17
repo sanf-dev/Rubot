@@ -7,10 +7,14 @@ use Rubot\Tools\Message;
 use Rubot\Utils\{
     MiniFun,
     Config,
-    Logger
+    Logger,
+    Markdown,
+    InsConverter,
+    DelConverter
 };
 use Rubot\Enums\{
-    KeypadType
+    KeypadType,
+    ParseMode
 };
 
 
@@ -20,27 +24,33 @@ use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\Psr7\Utils;
 use GuzzleHttp\Psr7\MultipartStream;
 
+use League\HTMLToMarkdown\HtmlConverter;
 
 class Bot
 {
-    private const BASE_URL = "https://botapi.rubika.ir/v3/";
+    private const BASE_URL = "https://messengerg2b1.iranlms.ir/v3/";
     private const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
     private const ALLOWED_MEDIA_TYPES = ["File", "Image", "Voice", "Music", "Video", "Gif"];
     private string $TOKEN;
     private request $request;
-    public Logger $log;
-
+    private Markdown $markdown;
     private array $Settings = [];
+    public Logger $log;
+    public ?ParseMode $parseMode = null;
+
+    public array $H2MConfig = ["strip_tags" => true, "hard_break" => true, "preserve_comments" => true];
 
     use MiniFun;
     use Config;
 
-    public function __construct(string $token)
+    public function __construct(string $token, ?ParseMode $setParseMode = null)
     {
         $this->TOKEN = $token;
         $this->request = new request();
+        $this->markdown = new Markdown();
         $this->LoadENV($this->loadEnvFile());
         $this->loadSettings();
+        $this->parseMode = $setParseMode;
 
         $path = dirname(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2)[0]["file"] ?? "bot.log") . DIRECTORY_SEPARATOR . "bot.log";
         $this->log = new Logger($path, filter_var($_ENV["DEBUG"] ?? false, FILTER_VALIDATE_BOOL));
@@ -49,8 +59,6 @@ class Bot
             $this->log->error("49|B_C - Token cannot be empty.");
             throw new BotException("Token cannot be empty.");
         }
-
-
     }
 
     /**
@@ -183,6 +191,18 @@ class Bot
 
         if (!is_null($reply) || !empty($reply))
             $data["reply_to_message_id"] = $reply;
+        if (!is_null($this->parseMode)) {
+            if ($this->parseMode == ParseMode::Auto)
+                $text = $this->SmartH2M($text);
+            else {
+                if ($this->parseMode == ParseMode::HTML)
+                    $text = $this->html_to_markdown($text);
+            }
+            $metadata = $this->markdown->toMetadata($text);
+            $data["text"] = $metadata["text"];
+            if (isset($metadata["metadata"]))
+                $data["metadata"] = $metadata["metadata"];
+        }
 
         $result = $this->post(
             "sendMessage",
@@ -204,6 +224,19 @@ class Bot
             "chat_id" => $chat_id,
             "message_id" => $message_id,
         ];
+
+        if (!is_null($this->parseMode)) {
+            if ($this->parseMode == ParseMode::Auto)
+                $text = $this->SmartH2M($text);
+            else {
+                if ($this->parseMode == ParseMode::HTML)
+                    $text = $this->html_to_markdown($text);
+            }
+            $metadata = $this->markdown->toMetadata($text);
+            $data["text"] = $metadata["text"];
+            if (isset($metadata["metadata"]))
+                $data["metadata"] = $metadata["metadata"];
+        }
 
         $result = $this->post(
             "editMessageText",
@@ -264,6 +297,22 @@ class Bot
             "file_id" => $file_id,
             "disable_notification" => $disable_notification
         ];
+        if (!is_null($reply) || !empty($reply))
+            $data["reply_to_message_id"] = $reply;
+        if (!is_null($this->parseMode)) {
+            if (!empty($text)) {
+                if ($this->parseMode == ParseMode::Auto)
+                    $text = $this->SmartH2M($text);
+                else {
+                    if ($this->parseMode == ParseMode::HTML)
+                        $text = $this->html_to_markdown($text);
+                }
+                $metadata = $this->markdown->toMetadata($text);
+                $data["text"] = $metadata["text"];
+                if (isset($metadata["metadata"]))
+                    $data["metadata"] = $metadata["metadata"];
+            }
+        }
 
         $result = $this->post(
             "sendFile",
@@ -520,7 +569,7 @@ class Bot
         if ($fileName === null) {
             $fileName = basename(parse_url($url, PHP_URL_PATH));
             if (empty($fileName)) {
-                $fileName = "download_" . time();
+                $fileName = "download_" . (string) (time());
             }
         }
 
@@ -755,6 +804,33 @@ class Bot
             $this->TOKEN = $_ENV["TOKEN"] ?? null;
         }
 
+    }
+
+    private function SmartH2M($text)
+    {
+        $lines = preg_split('/\r\n|\r|\n/', $text);
+        $out = [];
+        foreach ($lines as $line) {
+            if (str_contains($line, '<') && str_contains($line, '>')) {
+                $out[] = $this->html_to_markdown($line);
+            } else {
+                $out[] = $line;
+            }
+        }
+        return implode("\n", $out);
+    }
+
+    private function html_to_markdown($text)
+    {
+        if (strpos($text, '<') !== false && strpos($text, '>') !== false) {
+            $converter = new HtmlConverter($this->H2MConfig);
+            $converter->getEnvironment()->addConverter(new InsConverter());
+            $converter->getEnvironment()->addConverter(new DelConverter());
+            $converter->getConfig()->setOption("italic_style", "__");
+            $converter->getConfig()->setOption('use_autolinks', false);
+            return $converter->convert($text);
+        }
+        return $text;
     }
 
 }

@@ -59,7 +59,6 @@ use GuzzleHttp\Exception\RequestException;
 
 trait Config
 {
-
     public function post(string $method, array $input = []): array
     {
         $url = self::BASE_URL . $this->TOKEN . "/" . $method;
