@@ -28,7 +28,7 @@ use League\HTMLToMarkdown\HtmlConverter;
 
 class Bot
 {
-    private const BASE_URL = "https://messengerg2b1.iranlms.ir/v3/";
+    private const BASE_URL = "https://botapi.rubika.ir/v3/";
     private const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
     private const ALLOWED_MEDIA_TYPES = ["File", "Image", "Voice", "Music", "Video", "Gif"];
     private string $TOKEN;
